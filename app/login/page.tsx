@@ -9,7 +9,7 @@ export default function LoginPage() {
         {/* Logo */}
         <h1 className="text-[32px] font-bold mb-1">
           <span className="text-white">Contech</span>
-          <span className="text-[#4ade80]">Hub</span>
+          <span className="text-[#38bdf8]">Hub</span>
         </h1>
 
         {/* Subtitle */}

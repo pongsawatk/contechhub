@@ -33,7 +33,7 @@ export default function NavBar() {
       {/* Logo */}
       <Link href="/dashboard" className="text-lg font-bold shrink-0">
         <span className="text-white">Contech</span>
-        <span className="text-[#4ade80]">Hub</span>
+        <span className="text-[#38bdf8]">Hub</span>
       </Link>
 
       {/* Center Nav Links */}
