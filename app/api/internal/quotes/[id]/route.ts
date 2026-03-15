@@ -2,13 +2,26 @@ import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 import { Client } from '@notionhq/client'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function richText(p: any): string {
-  return p?.rich_text?.map((t: any) => t.plain_text).join('') ?? ''
+type TextItem = {
+  plain_text: string
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function titleText(p: any): string {
-  return p?.title?.map((t: any) => t.plain_text).join('') ?? ''
+
+type QuoteProperty = {
+  rich_text?: TextItem[]
+  title?: TextItem[]
+  select?: { name?: string | null } | null
+  number?: number | null
+  checkbox?: boolean | null
+}
+
+type QuoteProperties = Record<string, QuoteProperty>
+
+function richText(p?: QuoteProperty): string {
+  return p?.rich_text?.map((t) => t.plain_text).join('') ?? ''
+}
+
+function titleText(p?: QuoteProperty): string {
+  return p?.title?.map((t) => t.plain_text).join('') ?? ''
 }
 
 export async function GET(
@@ -27,9 +40,12 @@ export async function GET(
     notionVersion: '2026-03-11',
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const page = (await notion.pages.retrieve({ page_id: id })) as any
-  const props = page.properties
+  const page = await notion.pages.retrieve({ page_id: id })
+  const props = 'properties' in page ? (page.properties as QuoteProperties) : null
+
+  if (!props) {
+    return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
+  }
 
   return NextResponse.json({
     quoteName: titleText(props['Quote Name']),

@@ -4,21 +4,57 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import UserAvatar from "@/components/UserAvatar";
+import { FEATURES } from "@/lib/features";
+import type { FeatureKey } from "@/lib/features";
 import type { UserProfile } from "@/types/user";
 
 interface NavLink {
   label: string;
   href: string;
   roles: Array<UserProfile["appRole"]>;
+  feature: FeatureKey;
 }
 
 const navLinks: NavLink[] = [
-  { label: "ราคา", href: "/dashboard/pricing", roles: ["admin", "bu_member", "internal_viewer"] },
-  { label: "Chatbot", href: "/dashboard/chatbot", roles: ["admin", "bu_member", "internal_viewer"] },
-  { label: "คิดราคา", href: "/dashboard/calculator", roles: ["admin", "bu_member"] },
-  { label: "KPI", href: "/dashboard/kpi", roles: ["admin", "bu_member"] },
-  { label: "Revenue", href: "/dashboard/revenue", roles: ["admin", "bu_member"] },
+  {
+    label: "เธฃเธฒเธเธฒ",
+    href: "/dashboard/pricing",
+    roles: ["admin", "bu_member", "internal_viewer"],
+    feature: "pricing",
+  },
+  {
+    label: "Chatbot",
+    href: "/dashboard/chatbot",
+    roles: ["admin", "bu_member", "internal_viewer"],
+    feature: "chatbot",
+  },
+  {
+    label: "เธเธดเธ”เธฃเธฒเธเธฒ",
+    href: "/dashboard/calculator",
+    roles: ["admin", "bu_member"],
+    feature: "calculator",
+  },
+  {
+    label: "KPI",
+    href: "/dashboard/kpi",
+    roles: ["admin", "bu_member"],
+    feature: "kpi",
+  },
+  {
+    label: "Revenue",
+    href: "/dashboard/revenue",
+    roles: ["admin", "bu_member"],
+    feature: "revenue",
+  },
 ];
+
+function isFeatureVisible(feature: FeatureKey) {
+  if (feature === "pricing" || feature === "calculator") {
+    return true;
+  }
+
+  return FEATURES[feature];
+}
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -26,20 +62,22 @@ export default function NavBar() {
   const profile = session?.user?.profile;
   const appRole = profile?.appRole ?? "internal_viewer";
 
-  const visibleLinks = navLinks.filter((link) => link.roles.includes(appRole));
+  const visibleLinks = navLinks.filter(
+    (link) => link.roles.includes(appRole) && isFeatureVisible(link.feature)
+  );
 
   return (
     <nav className="glass-nav sticky top-0 z-50 px-6 py-3 flex items-center justify-between">
-      {/* Logo */}
       <Link href="/dashboard" className="text-lg font-bold shrink-0">
         <span className="text-white">Contech</span>
         <span className="text-[#38bdf8]">Hub</span>
       </Link>
 
-      {/* Center Nav Links */}
       <div className="hidden md:flex items-center gap-1 mx-4">
         {visibleLinks.map((link) => {
-          const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+          const isActive =
+            pathname === link.href || pathname.startsWith(link.href + "/");
+
           return (
             <Link
               key={link.href}
@@ -52,10 +90,11 @@ export default function NavBar() {
         })}
       </div>
 
-      {/* Mobile menu indicator */}
       <div className="flex md:hidden items-center gap-1 mx-4 overflow-x-auto scrollbar-none">
         {visibleLinks.map((link) => {
-          const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+          const isActive =
+            pathname === link.href || pathname.startsWith(link.href + "/");
+
           return (
             <Link
               key={link.href}
@@ -68,7 +107,6 @@ export default function NavBar() {
         })}
       </div>
 
-      {/* Avatar */}
       <UserAvatar />
     </nav>
   );

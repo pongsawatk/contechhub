@@ -68,7 +68,7 @@ export default function ProductTab({ items, productName, productColor, productLo
           <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
             <span style={{ color: productColor }}>+</span> Add-ons เสริมประสิทธิภาพ
           </h3>
-          <AddonSection addons={addons} bundles={bundles} productColor={productColor} />
+          <AddonSection addons={addons} bundles={bundles} />
         </section>
       )}
 

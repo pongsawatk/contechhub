@@ -37,9 +37,6 @@ function numberProp(p: any): number {
   return p?.number ?? 0
 }
 
-function multiSelectProp(p: any): string[] {
-  return p?.multi_select?.map((s: any) => s.name) ?? []
-}
 
 // ── getUserProfile ───────────────────────────────────────────────────
 export async function getUserProfile(email: string): Promise<UserProfile | null> {

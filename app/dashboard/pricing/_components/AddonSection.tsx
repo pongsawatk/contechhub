@@ -4,10 +4,9 @@ import { formatPrice, formatNumber } from '@/lib/pricing-utils'
 interface Props {
   addons: PricingItem[]
   bundles: PricingItem[]
-  productColor: string
 }
 
-export default function AddonSection({ addons, bundles, productColor }: Props) {
+export default function AddonSection({ addons, bundles }: Props) {
   return (
     <div>
       {/* Add-ons Grid */}
