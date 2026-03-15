@@ -102,7 +102,7 @@ export async function getPricingPackages(isContechBU = false): Promise<PricingIt
           billing: selectProp(prop(page, "Billing")),
           activeSlots: numberProp(prop(page, "Active Slots")),
           keyInclusions: richText(prop(page, "Key Inclusions"))
-            .split(",")
+            .split(" | ")
             .map((s: string) => s.trim())
             .filter(Boolean),
           targetProfile: richText(prop(page, "Target Profile")),
