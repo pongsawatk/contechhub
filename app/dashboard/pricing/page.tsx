@@ -1,36 +1,24 @@
-"use client";
+import { Suspense } from 'react'
+import { auth } from '@/auth'
+import { getPricingPackages } from '@/lib/notion'
+import PricingDisplay from './_components/PricingDisplay'
 
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+export const revalidate = 3600
 
-export default function PricingPage() {
-  const router = useRouter();
+export default async function PricingPage() {
+  const session = await auth()
+  const isContechBU = session?.user?.profile?.buMembership === 'Contech BU'
+  const items = await getPricingPackages(isContechBU)
 
   return (
-    <div>
-      {/* Breadcrumb */}
-      <p className="text-muted text-[13px] mb-6">
-        <Link href="/dashboard" className="hover:text-white transition-colors">Contech Hub</Link>
-        <span className="mx-1.5">›</span>
-        <span>ดูราคา</span>
-      </p>
-
-      {/* Placeholder card */}
-      <div className="flex justify-center">
-        <div className="glass p-10 max-w-md w-full text-center">
-          <div className="text-5xl mb-4 opacity-20">💰</div>
-          <h2 className="text-[22px] font-bold text-white mb-2">ดูราคา</h2>
-          <p className="text-secondary text-sm mb-6">
-            กำลังพัฒนา — มาเร็วๆ นี้
-          </p>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="glass-ghost px-6 py-2.5 text-sm font-medium"
-          >
-            กลับ Dashboard
-          </button>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-20">
+          <p className="text-white/50 text-sm">กำลังโหลดข้อมูลราคา...</p>
         </div>
-      </div>
-    </div>
-  );
+      }
+    >
+      <PricingDisplay items={items} />
+    </Suspense>
+  )
 }

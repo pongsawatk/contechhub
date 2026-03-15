@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Client } from "@notionhq/client"
-import type { UserProfile, PricingPackage, KpiEntry, RevenueEntry } from "@/types/user"
+import type { UserProfile, KpiEntry, RevenueEntry } from "@/types/user"
+import type { PricingItem } from "@/types/pricing"
 
 const notion = new Client({
   auth: process.env.NOTION_TOKEN,
@@ -73,21 +74,46 @@ export async function getUserProfile(email: string): Promise<UserProfile | null>
 }
 
 // ── getPricingPackages ───────────────────────────────────────────────
-export async function getPricingPackages(): Promise<PricingPackage[]> {
+export async function getPricingPackages(isContechBU = false): Promise<PricingItem[]> {
   try {
     const response = await notion.dataSources.query({
       data_source_id: process.env.NOTION_PRICING_DB_ID!,
-      sorts: [{ property: "Price (THB)", direction: "ascending" }],
+      filter: {
+        property: "Visibility",
+        select: { does_not_equal: "Hidden" },
+      } as any,
+      sorts: [
+        { property: "Sort Order", direction: "ascending" },
+        { property: "Price (THB)", direction: "ascending" },
+      ],
     })
 
-    return response.results.map((page: any) => ({
-      id: page.id,
-      name: titleText(prop(page, "Name")) || richText(prop(page, "Name")),
-      description: richText(prop(page, "Description")),
-      priceTHB: numberProp(prop(page, "Price (THB)")),
-      features: multiSelectProp(prop(page, "Features")),
-      category: selectProp(prop(page, "Category")),
-    }))
+    return (response.results as any[])
+      .map((page: any) => {
+        const visibility = selectProp(prop(page, "Visibility"))
+        if (visibility === "Internal Only" && !isContechBU) return null
+
+        return {
+          id: page.id as string,
+          packageName: titleText(prop(page, "Package Name")),
+          product: selectProp(prop(page, "Product")) as PricingItem["product"],
+          type: selectProp(prop(page, "Type")) as PricingItem["type"],
+          price: numberProp(prop(page, "Price (THB)")),
+          billing: selectProp(prop(page, "Billing")),
+          activeSlots: numberProp(prop(page, "Active Slots")),
+          keyInclusions: richText(prop(page, "Key Inclusions"))
+            .split(",")
+            .map((s: string) => s.trim())
+            .filter(Boolean),
+          targetProfile: richText(prop(page, "Target Profile")),
+          lane: selectProp(prop(page, "Lane")) as PricingItem["lane"],
+          notes: richText(prop(page, "Notes")),
+          visibility: visibility as PricingItem["visibility"],
+          sortOrder: prop(page, "Sort Order")?.number ?? 999,
+          effectiveDate: prop(page, "Effective Date")?.date?.start ?? null,
+        } as PricingItem
+      })
+      .filter(Boolean) as PricingItem[]
   } catch (error) {
     console.error("[Notion] getPricingPackages error:", error)
     return []

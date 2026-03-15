@@ -6,6 +6,7 @@ const config: Config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -13,7 +14,7 @@ const config: Config = {
         xs: "2px",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-sarabun)", "var(--font-inter)", "system-ui", "sans-serif"],
       },
       colors: {
         accent: {
@@ -66,8 +67,14 @@ const config: Config = {
           "-webkit-backdrop-filter": "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           "border-radius": "16px",
-          cursor: "pointer",
           transition: "all 0.2s ease",
+        },
+        ".scrollbar-hide": {
+          "-ms-overflow-style": "none",
+          "scrollbar-width": "none",
+          "&::-webkit-scrollbar": {
+            display: "none",
+          },
         },
       });
     }),
