@@ -17,7 +17,7 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   {
-    label: "เธฃเธฒเธเธฒ",
+    label: "ราคา",
     href: "/dashboard/pricing",
     roles: ["admin", "bu_member", "internal_viewer"],
     feature: "pricing",
@@ -29,7 +29,7 @@ const navLinks: NavLink[] = [
     feature: "chatbot",
   },
   {
-    label: "เธเธดเธ”เธฃเธฒเธเธฒ",
+    label: "คิดราคา",
     href: "/dashboard/calculator",
     roles: ["admin", "bu_member"],
     feature: "calculator",

@@ -17,41 +17,41 @@ interface ActionItem {
 
 const actions: ActionItem[] = [
   {
-    icon: "๐’ฐ",
-    title: "เธ”เธนเธฃเธฒเธเธฒ",
-    subtitle: "เธ”เธนเนเธเนเธเน€เธเธเนเธฅเธฐเธฃเธฒเธเธฒเธชเธดเธเธเนเธฒเธ—เธฑเนเธเธซเธกเธ”",
+    icon: "💰",
+    title: "ดูราคา",
+    subtitle: "ดูแพ็คเกจและราคาสินค้าทั้งหมด",
     href: "/dashboard/pricing",
     roles: ["admin", "bu_member", "internal_viewer"],
     feature: "pricing",
   },
   {
-    icon: "๐’ฌ",
-    title: "เธ–เธฒเธกเธเธก",
-    subtitle: "เธชเธญเธเธ–เธฒเธกเธเนเธญเธกเธนเธฅเธเนเธฒเธ AI Chatbot",
+    icon: "💬",
+    title: "ถามผม",
+    subtitle: "สอบถามข้อมูลผ่าน AI Chatbot",
     href: "/dashboard/chatbot",
     roles: ["admin", "bu_member", "internal_viewer"],
     feature: "chatbot",
   },
   {
-    icon: "๐งฎ",
-    title: "เธเธดเธ”เธฃเธฒเธเธฒ",
-    subtitle: "เธเธณเธเธงเธ“เธฃเธฒเธเธฒเน€เธชเธเธญเธฅเธนเธเธเนเธฒ",
+    icon: "🧮",
+    title: "คิดราคา",
+    subtitle: "คำนวณราคาเสนอลูกค้า",
     href: "/dashboard/calculator",
     roles: ["admin", "bu_member"],
     feature: "calculator",
   },
   {
-    icon: "๐“",
-    title: "KPI เธเธญเธเธเธฑเธ",
-    subtitle: "เธ•เธดเธ”เธ•เธฒเธกเธเธฅเธเธฒเธฃเธ”เธณเน€เธเธดเธเธเธฒเธ",
+    icon: "📊",
+    title: "KPI ของฉัน",
+    subtitle: "ติดตามผลการดำเนินงาน",
     href: "/dashboard/kpi",
     roles: ["admin", "bu_member"],
     feature: "kpi",
   },
   {
-    icon: "๐’น",
+    icon: "💹",
     title: "Revenue",
-    subtitle: "เธ”เธนเธฃเธฒเธขเนเธ”เนเนเธฅเธฐเธชเธ–เธดเธ•เธดเธเธฒเธฃเธเธฒเธข",
+    subtitle: "ดูรายได้และสถิติการขาย",
     href: "/dashboard/revenue",
     roles: ["admin", "bu_member"],
     feature: "revenue",
@@ -80,7 +80,7 @@ export default function DashboardPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-[28px] font-bold text-white mb-2">
-          เธชเธงเธฑเธชเธ”เธต, {displayName}
+          สวัสดี, {displayName}
         </h1>
         <div className="flex items-center gap-2 flex-wrap">
           {profile?.team && <span className="badge">{profile.team}</span>}
