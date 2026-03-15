@@ -21,19 +21,29 @@ export default function ProductTab({ items, productName, productColor, productLo
     <div className="space-y-10">
       {/* Section 1: Packages */}
       <section>
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center p-2 flex-shrink-0">
+        {/* Product header — larger logo */}
+        <div className="flex items-center gap-5 mb-7">
+          <div
+            className="rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{
+              width: '80px',
+              height: '80px',
+              background: 'rgba(255,255,255,0.08)',
+              border: `1px solid ${productColor}30`,
+              padding: '10px',
+            }}
+          >
             <Image
               src={productLogo}
               alt={productName}
-              width={48}
-              height={48}
+              width={60}
+              height={60}
               className="object-contain"
             />
           </div>
           <div>
             <h2 className="text-white text-2xl font-semibold">{productName}</h2>
-            <p className="text-white/50 text-sm font-light">เปรียบเทียบแพ็กเกจ</p>
+            <p className="text-white/50 text-sm font-light mt-0.5">เปรียบเทียบแพ็กเกจ</p>
           </div>
         </div>
 

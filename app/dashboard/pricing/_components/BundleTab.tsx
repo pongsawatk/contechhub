@@ -9,7 +9,6 @@ export default function BundleTab({ items }: Props) {
   const specialBundles = items.filter(
     (i) => i.product === 'Bundle' && i.type === 'Bundle'
   )
-  const services = items.filter((i) => i.type === 'Service')
   const infrastructure = items.filter(
     (i) =>
       i.type === 'Package' &&
@@ -19,15 +18,14 @@ export default function BundleTab({ items }: Props) {
         i.packageName.toLowerCase().includes('cloud'))
   )
 
-  const isEmpty =
-    specialBundles.length === 0 && services.length === 0 && infrastructure.length === 0
+  const isEmpty = specialBundles.length === 0 && infrastructure.length === 0
 
   return (
     <div className="space-y-10">
       {/* Section 1: Special Bundles */}
       {specialBundles.length > 0 && (
         <section>
-          <h2 className="text-white text-2xl font-semibold mb-1">บันเดิลพิเศษ</h2>
+          <h2 className="text-white text-2xl font-semibold mb-1">Bundle Package</h2>
           <p className="text-white/50 text-sm font-light mb-6">
             โปรโมชันสำหรับลูกค้าที่ใช้หลายผลิตภัณฑ์
           </p>
@@ -82,45 +80,7 @@ export default function BundleTab({ items }: Props) {
         </section>
       )}
 
-      {/* Section 2: Professional Services */}
-      {services.length > 0 && (
-        <section>
-          <h2 className="text-white text-2xl font-semibold mb-1">Professional Services</h2>
-          <p className="text-white/50 text-sm font-light mb-6">บริการเสริมโดยทีม Contech</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {services.map((item) => (
-              <div
-                key={item.id}
-                className="glass-card flex justify-between items-center gap-4 p-5"
-              >
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-white font-medium">{item.packageName}</h4>
-                  {item.targetProfile && (
-                    <p className="text-white/50 text-sm mt-0.5">{item.targetProfile}</p>
-                  )}
-                  {item.notes && (
-                    <p className="text-white/[0.35] text-xs mt-1">{item.notes}</p>
-                  )}
-                </div>
-                <div className="text-right flex-shrink-0">
-                  {item.price > 0 ? (
-                    <>
-                      <p className="text-[#4ade80] font-semibold text-lg tabular-nums">
-                        {formatNumber(item.price)}
-                      </p>
-                      <p className="text-white/40 text-xs">{formatBilling(item.billing)}</p>
-                    </>
-                  ) : (
-                    <p className="text-[#4ade80] font-semibold">ติดต่อฝ่ายขาย</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Section 3: Infrastructure */}
+      {/* Section 2: Infrastructure / Private DB */}
       {infrastructure.length > 0 && (
         <section>
           <h2 className="text-white text-2xl font-semibold mb-1">
@@ -181,7 +141,7 @@ export default function BundleTab({ items }: Props) {
       {/* Empty state */}
       {isEmpty && (
         <div className="glass-card p-16 text-center">
-          <p className="text-white/40 text-sm">ยังไม่มีข้อมูลบันเดิลจาก Notion</p>
+          <p className="text-white/40 text-sm">ยังไม่มีข้อมูล Bundle Package จาก Notion</p>
         </div>
       )}
     </div>

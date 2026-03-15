@@ -66,20 +66,29 @@ export default function OverviewTab({ items, onTabChange }: Props) {
               style={{ borderTop: `3px solid ${config.color}` }}
               onClick={() => onTabChange(config.tabId)}
             >
-              {/* Product Logo + Name */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center p-2 flex-shrink-0">
+              {/* Product Logo + Name — larger logo */}
+              <div className="flex items-center gap-4 mb-5">
+                <div
+                  className="rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    padding: '10px',
+                  }}
+                >
                   <Image
                     src={config.logo}
                     alt={product}
-                    width={48}
-                    height={48}
+                    width={60}
+                    height={60}
                     className="object-contain"
                   />
                 </div>
                 <div>
                   <p className="text-white/50 text-xs font-light">{config.nameTH}</p>
-                  <h3 className="text-white font-semibold text-lg">{product}</h3>
+                  <h3 className="text-white font-semibold text-xl mt-0.5">{product}</h3>
                 </div>
               </div>
 

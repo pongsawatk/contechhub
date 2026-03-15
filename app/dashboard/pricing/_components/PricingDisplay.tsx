@@ -7,19 +7,21 @@ import { PRODUCT_COLORS, PRODUCT_LOGOS } from '@/lib/pricing-utils'
 import OverviewTab from './OverviewTab'
 import ProductTab from './ProductTab'
 import BundleTab from './BundleTab'
+import ServicesTab from './ServicesTab'
 import PricingFooter from './PricingFooter'
 
-type Tab = 'overview' | 'insite' | '360' | 'kwanjai' | 'bundle'
+type Tab = 'overview' | 'insite' | '360' | 'kwanjai' | 'bundle' | 'services'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'ภาพรวม' },
   { id: 'insite', label: 'Builk Insite' },
   { id: '360', label: 'Builk 360' },
   { id: 'kwanjai', label: 'Kwanjai' },
-  { id: 'bundle', label: 'บันเดิล & บริการ' },
+  { id: 'bundle', label: 'Bundle Package' },
+  { id: 'services', label: 'Professional Services' },
 ]
 
-const VALID_TABS: Tab[] = ['overview', 'insite', '360', 'kwanjai', 'bundle']
+const VALID_TABS: Tab[] = ['overview', 'insite', '360', 'kwanjai', 'bundle', 'services']
 
 interface Props {
   items: PricingItem[]
@@ -38,7 +40,6 @@ export default function PricingDisplay({ items }: Props) {
     router.replace(`?tab=${id}`, { scroll: false })
   }
 
-  // Latest effective date from any item
   const latestDate = items
     .map((i) => i.effectiveDate)
     .filter(Boolean)
@@ -78,6 +79,8 @@ export default function PricingDisplay({ items }: Props) {
         )
       case 'bundle':
         return <BundleTab items={items} />
+      case 'services':
+        return <ServicesTab items={items} />
       default:
         return <OverviewTab items={items} onTabChange={setActiveTab} />
     }
@@ -85,36 +88,50 @@ export default function PricingDisplay({ items }: Props) {
 
   return (
     <div>
-      {/* Page Header */}
+      {/* ── Page Header ──────────────────────────────────────────────── */}
       <div className="mb-8">
-        <p className="text-white/40 text-sm font-light mb-2">
+        <p className="text-white/40 text-sm font-light mb-3">
           Contech Hub  ›  ราคาและแพ็กเกจ
         </p>
-        <div className="flex items-end justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <Image
-              src="/logos/contech_logo.png"
-              alt="Contech Hub"
-              width={48}
-              height={48}
-              className="object-contain opacity-90"
-            />
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          {/* Left: landscape logo + title */}
+          <div className="flex items-center gap-5">
+            {/* Contech landscape logo — white bg */}
+            <div
+              className="flex items-center justify-center rounded-xl px-3 py-2 flex-shrink-0"
+              style={{
+                background: '#ffffff',
+                minWidth: '160px',
+                height: '56px',
+              }}
+            >
+              <Image
+                src="/logos/contech_logo_lan.png"
+                alt="Contech Hub"
+                width={148}
+                height={44}
+                className="object-contain"
+                priority
+              />
+            </div>
+            {/* Title */}
             <div>
-              <h1 className="text-3xl font-semibold text-white">
+              <h1 className="text-3xl font-semibold text-white leading-tight">
                 ราคาและแพ็กเกจ
               </h1>
-              <p className="text-white/60 font-light mt-1">
+              <p className="text-white/60 font-light mt-1 text-sm">
                 โซลูชันครบวงจรสำหรับธุรกิจก่อสร้างยุคดิจิทัล
               </p>
             </div>
           </div>
+          {/* Right: disclaimer */}
           <p className="text-white/[0.35] text-xs italic self-end">
             ราคาเพื่อการนำเสนอ อาจเปลี่ยนตาม scope จริง · มีผล ม.ค. 2026
           </p>
         </div>
       </div>
 
-      {/* Sticky Tab Bar — break out of dashboard padding */}
+      {/* ── Sticky Tab Bar ───────────────────────────────────────────── */}
       <div
         className="sticky top-[64px] z-40 -mx-4 sm:-mx-6 mb-8"
         style={{
@@ -141,10 +158,10 @@ export default function PricingDisplay({ items }: Props) {
         </div>
       </div>
 
-      {/* Tab Content */}
+      {/* ── Tab Content ──────────────────────────────────────────────── */}
       {renderContent()}
 
-      {/* Footer */}
+      {/* ── Footer ───────────────────────────────────────────────────── */}
       <PricingFooter effectiveDateNote={latestDate ?? undefined} />
     </div>
   )
