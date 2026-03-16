@@ -1,8 +1,8 @@
-export const FEATURES = {
+﻿export const FEATURES = {
   pricing: true,
   calculator: true,
-  kpi: false,
-  revenue: false,
+  kpi: true,
+  revenue: true,
   chatbot: false,
 } as const;
 
