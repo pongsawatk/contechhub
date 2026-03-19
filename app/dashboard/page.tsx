@@ -56,6 +56,14 @@ const actions: ActionItem[] = [
     roles: ["admin", "bu_member"],
     feature: "revenue",
   },
+  {
+    icon: "🔥",
+    title: "Pipeline",
+    subtitle: "ติดตาม Hot Quotation และ Sales Order",
+    href: "/dashboard/pipeline",
+    roles: ["admin", "bu_member"],
+    feature: "pipeline",
+  },
 ];
 
 function isFeatureVisible(feature: FeatureKey) {

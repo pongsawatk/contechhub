@@ -3,6 +3,7 @@
   calculator: true,
   kpi: true,
   revenue: true,
+  pipeline: true,
   chatbot: false,
 } as const;
 
