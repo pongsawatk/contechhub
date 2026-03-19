@@ -38,10 +38,21 @@ function sheetToRows(buffer: ArrayBuffer): Record<string, any>[] {
   return XLSX.utils.sheet_to_json(ws, { raw: true, defval: "" }) as Record<string, any>[]
 }
 
-function validateDate(v: string, field: string, warnings: RowError[], rowIndex: number): string {
+/** strict=true → push to errors (blocks import); false → push to warnings */
+function validateDate(
+  v: string,
+  field: string,
+  errors: RowError[],
+  warnings: RowError[],
+  rowIndex: number,
+  strict = false
+): string {
   if (!v) return ""
   const d = parseDateDMY(v)
-  if (!d) warnings.push({ row: rowIndex, field, message: "รูปแบบวันที่ไม่ถูกต้อง ควรเป็น DD/MM/YYYY" })
+  if (!d) {
+    const target = strict ? errors : warnings
+    target.push({ row: rowIndex, field, message: "รูปแบบวันที่ไม่ถูกต้อง ต้องเป็น DD/MM/YYYY (ปี ค.ศ.)" })
+  }
   return d ?? ""
 }
 
@@ -64,7 +75,7 @@ export function parseHotQuotation(buffer: ArrayBuffer): ParseResult {
     if (!companyName) errors.push({ row: rowIndex, field: "Company Name", message: "จำเป็นต้องกรอก" })
     if (!hotness) errors.push({ row: rowIndex, field: "Hotness", message: "จำเป็นต้องกรอก (4 หรือ 5)" })
     else if (hotness !== "4" && hotness !== "5") errors.push({ row: rowIndex, field: "Hotness", message: "ต้องเป็น 4 หรือ 5 เท่านั้น" })
-    if (!isValidNum(row, "Quotation Amount", "Amount")) warnings.push({ row: rowIndex, field: "Quotation Amount", message: "ค่าตัวเลขไม่ถูกต้อง จะถือเป็น 0" })
+    if (!isValidNum(row, "Quotation Amount", "Amount")) errors.push({ row: rowIndex, field: "Quotation Amount", message: "ต้องเป็นตัวเลขเท่านั้น (เช่น 500000)" })
 
     // Handle bundle products: split " | " into multiple rows
     const products = rawProduct ? rawProduct.split(" | ").map((p: string) => p.trim()).filter(Boolean) : [rawProduct || ""]
@@ -86,8 +97,8 @@ export function parseHotQuotation(buffer: ArrayBuffer): ParseResult {
         lane: getCol(row, "Lane"),
         stage: getCol(row, "Stage"),
         salesOwner: getCol(row, "Sales Owner"),
-        expectedClose: validateDate(getCol(row, "Expected Close"), "Expected Close", warnings, rowIndex),
-        lastActivity: validateDate(getCol(row, "Last Activity"), "Last Activity", warnings, rowIndex),
+        expectedClose: validateDate(getCol(row, "Expected Close"), "Expected Close", errs, warnings, rowIndex, false),
+        lastActivity: validateDate(getCol(row, "Last Activity"), "Last Activity", errs, warnings, rowIndex, false),
         notes: getCol(row, "Notes"),
       }
 
@@ -119,7 +130,7 @@ export function parseSalesOrder(buffer: ArrayBuffer): ParseResult {
 
     if (!orderNo) errors.push({ row: rowIndex, field: "Order No.", message: "จำเป็นต้องกรอก" })
     if (!companyName) errors.push({ row: rowIndex, field: "Company Name", message: "จำเป็นต้องกรอก" })
-    if (!isValidNum(row, "Order Amount", "Amount")) warnings.push({ row: rowIndex, field: "Order Amount", message: "ค่าตัวเลขไม่ถูกต้อง จะถือเป็น 0" })
+    if (!isValidNum(row, "Order Amount", "Amount")) errors.push({ row: rowIndex, field: "Order Amount", message: "ต้องเป็นตัวเลขเท่านั้น (เช่น 500000)" })
     else if (orderAmount <= 0) warnings.push({ row: rowIndex, field: "Order Amount", message: "จำนวนเงินควรมากกว่า 0" })
 
     const data: ParsedSalesOrder = {
@@ -131,8 +142,8 @@ export function parseSalesOrder(buffer: ArrayBuffer): ParseResult {
       orderAmount,
       lane: getCol(row, "Lane"),
       revenueType: getCol(row, "Revenue Type"),
-      closeDate: validateDate(getCol(row, "Close Date"), "Close Date", warnings, rowIndex),
-      expectedGoLive: validateDate(getCol(row, "Expected Go-live", "Expected Go Live"), "Expected Go-live", warnings, rowIndex),
+      closeDate: validateDate(getCol(row, "Close Date"), "Close Date", errors, warnings, rowIndex, true),
+      expectedGoLive: validateDate(getCol(row, "Expected Go-live", "Expected Go Live"), "Expected Go-live", errors, warnings, rowIndex, false),
       contractMonths: getNum(row, "Contract Months"),
       salesOwner: getCol(row, "Sales Owner"),
       paymentTerms: getCol(row, "Payment Terms"),

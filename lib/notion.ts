@@ -18,15 +18,25 @@ function numberProp(p: any): number { return p?.number ?? 0 }
 function peopleName(p: any): string { return p?.people?.[0]?.name ?? "" }
 function peopleEmail(p: any): string { return p?.people?.[0]?.person?.email ?? "" }
 
-let _notionUsersCache: { id: string; name: string }[] | null = null
+let _notionUsersCache: { id: string; name: string; email: string }[] | null = null
 async function findNotionUserByName(name: string): Promise<string | null> {
   if (!name) return null
   try {
     if (!_notionUsersCache) {
       const r = await notion.users.list({})
-      _notionUsersCache = r.results.map((u: any) => ({ id: u.id, name: (u.name ?? "") as string }))
+      _notionUsersCache = r.results.map((u: any) => ({
+        id: u.id,
+        name: (u.name ?? "") as string,
+        email: (u.person?.email ?? "") as string,
+      }))
     }
-    return _notionUsersCache.find((u) => u.name.toLowerCase() === name.toLowerCase())?.id ?? null
+    const lower = name.toLowerCase()
+    // Match by display name first, then email as fallback (backward compat)
+    return (
+      _notionUsersCache.find((u) => u.name.toLowerCase() === lower)?.id ??
+      _notionUsersCache.find((u) => u.email.toLowerCase() === lower)?.id ??
+      null
+    )
   } catch {
     return null
   }
