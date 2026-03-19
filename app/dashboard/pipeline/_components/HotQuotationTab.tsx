@@ -56,19 +56,19 @@ export default function HotQuotationTab({ quotations, customers, currentUser }: 
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="\u0e04\u0e49\u0e19\u0e2b\u0e32..."
+            placeholder="ค้นหา..."
             className="glass-input px-3 py-1.5 text-sm rounded-lg w-48"
           />
           <select value={filterProduct} onChange={(e) => setFilterProduct(e.target.value)} className="glass-input px-3 py-1.5 text-sm rounded-lg">
-            <option value="">\u0e17\u0e38\u0e01 Product</option>
+            <option value="">ทุก Product</option>
             {HOT_QUOTATION_PRODUCTS.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
           <select value={filterStage} onChange={(e) => setFilterStage(e.target.value)} className="glass-input px-3 py-1.5 text-sm rounded-lg">
-            <option value="">\u0e17\u0e38\u0e01 Stage</option>
+            <option value="">ทุก Stage</option>
             {HOT_QUOTATION_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="glass-input px-3 py-1.5 text-sm rounded-lg">
-            <option value="">\u0e17\u0e38\u0e01 Status</option>
+            <option value="">ทุก Status</option>
             {["Active", "Won", "Lost", "On Hold"].map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <select value={filterLane} onChange={(e) => setFilterLane(e.target.value)} className="glass-input px-3 py-1.5 text-sm rounded-lg">
@@ -82,23 +82,23 @@ export default function HotQuotationTab({ quotations, customers, currentUser }: 
             className="glass-input px-3 py-1.5 text-sm rounded-lg w-32"
           />
           <select value={filterHotness} onChange={(e) => setFilterHotness(e.target.value)} className="glass-input px-3 py-1.5 text-sm rounded-lg">
-            <option value="">\u0e17\u0e38\u0e01 Hotness</option>
-            <option value="5">5 \uD83D\uDD25\uD83D\uDD25</option>
-            <option value="4">4 \uD83D\uDD25</option>
+            <option value="">ทุก Hotness</option>
+            <option value="5">5 🔥🔥</option>
+            <option value="4">4 🔥</option>
           </select>
         </div>
         {canImport && (
           <div className="flex gap-2">
-            <button onClick={() => downloadBlob(generateHotQuotationTemplate(), "hot-quotation-template.xlsx")} className="glass-ghost px-3 py-1.5 text-sm rounded-lg">\uD83D\uDCE5 Template</button>
-            <button onClick={() => setShowImport(true)} className="glass-btn px-3 py-1.5 text-sm rounded-lg">\uD83D\uDCE4 Import</button>
+            <button onClick={() => downloadBlob(generateHotQuotationTemplate(), "hot-quotation-template.xlsx")} className="glass-ghost px-3 py-1.5 text-sm rounded-lg">📥 Template</button>
+            <button onClick={() => setShowImport(true)} className="glass-btn px-3 py-1.5 text-sm rounded-lg">📤 Import</button>
           </div>
         )}
       </div>
 
-      <div className="text-sm text-white/50">\u0e41\u0e2a\u0e14\u0e07 {filtered.length} \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23 | Active: {formatTHB(totalAmount)} THB</div>
+      <div className="text-sm text-white/50">แสดง {filtered.length} รายการ | Active: {formatTHB(totalAmount)} THB</div>
 
       <div className="space-y-2">
-        {filtered.length === 0 && <div className="glass-card p-8 text-center text-white/40">\u0e44\u0e21\u0e48\u0e21\u0e35\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25</div>}
+        {filtered.length === 0 && <div className="glass-card p-8 text-center text-white/40">ไม่มีข้อมูล</div>}
         {filtered.map((q) => {
           const isExpanded = expandedId === q.id
           const customerName = customers.find((c) => c.id === q.customerRelationId)?.companyName ?? q.contactName
@@ -119,7 +119,7 @@ export default function HotQuotationTab({ quotations, customers, currentUser }: 
                   <div className="text-white text-sm font-medium">{formatTHB(q.quotationAmount)}</div>
                   <div className="text-yellow-400 text-xs">{hotnessDisplay(q.hotness)}</div>
                 </div>
-                <div className="text-white/30 text-xs ml-2">{isExpanded ? "\u25b2" : "\u25bc"}</div>
+                <div className="text-white/30 text-xs ml-2">{isExpanded ? "▲" : "▼"}</div>
               </div>
               {isExpanded && (
                 <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-white/50">

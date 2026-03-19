@@ -37,7 +37,7 @@ export default function PipelineSummary({ quotations, orders }: Props) {
       {/* Card 1: Hot Quotation */}
       <div className="glass-card p-5 space-y-4 relative">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">\uD83D\uDD25</span>
+          <span className="text-2xl">🔥</span>
           <h3 className="text-white font-semibold">Hot Quotation</h3>
         </div>
         <div>
@@ -60,13 +60,13 @@ export default function PipelineSummary({ quotations, orders }: Props) {
           Hotness 5: {activeQuotes.filter((q) => q.hotness === "5").length} ·
           Hotness 4: {activeQuotes.filter((q) => q.hotness === "4").length}
         </div>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 text-3xl hidden md:block">\u2192</div>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 text-3xl hidden md:block">→</div>
       </div>
 
       {/* Card 2: Sales Order */}
       <div className="glass-card p-5 space-y-4 relative">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">\uD83D\uDCBC</span>
+          <span className="text-2xl">💼</span>
           <h3 className="text-white font-semibold">Sales Order (MTD)</h3>
         </div>
         <div>
@@ -82,13 +82,13 @@ export default function PipelineSummary({ quotations, orders }: Props) {
           ))}
         </div>
         <div className="text-xs text-white/40">Avg deal: {formatTHB(avgDeal)} THB</div>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 text-3xl hidden md:block">\u2192</div>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 text-3xl hidden md:block">→</div>
       </div>
 
       {/* Card 3: Revenue */}
       <div className="glass-card p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">\uD83D\uDCB9</span>
+          <span className="text-2xl">💹</span>
           <h3 className="text-white font-semibold">Revenue</h3>
         </div>
         <div>
@@ -108,7 +108,7 @@ export default function PipelineSummary({ quotations, orders }: Props) {
         </div>
         <Link href="/dashboard/revenue"
           className="block text-center text-xs text-accent-cyan hover:text-white transition-colors py-2 glass-ghost rounded-lg">
-          \u0e14\u0e39 Revenue Tracker \u2192
+          ดู Revenue Tracker →
         </Link>
       </div>
     </div>

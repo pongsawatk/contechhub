@@ -9,7 +9,7 @@ export default function CustomerAutoCreate({ newCompanies, autoCreate, onToggle 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-blue-400 text-sm">\uD83C\uDFE2</span>
+        <span className="text-blue-400 text-sm">🏢</span>
         <span className="text-blue-400 text-sm font-medium">พบลูกค้าใหม่ {newCompanies.length} ราย</span>
       </div>
       <div className="max-h-28 overflow-y-auto space-y-1">

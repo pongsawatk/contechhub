@@ -71,7 +71,7 @@ export default function ImportPreviewTable({ rows, type }: Props) {
                   {!hasError && hasWarn && (
                     <div className="text-yellow-400">{r.warnings[0]?.message}</div>
                   )}
-                  {!hasError && !hasWarn && <span className="text-green-400">\u2713</span>}
+                  {!hasError && !hasWarn && <span className="text-green-400">✓</span>}
                 </td>
               </tr>
             )
