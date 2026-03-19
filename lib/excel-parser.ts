@@ -21,7 +21,15 @@ function getCol(row: Record<string, any>, ...keys: string[]): string {
 
 function getNum(row: Record<string, any>, ...keys: string[]): number {
   const v = getCol(row, ...keys)
-  return v ? Number(v.replace(/,/g, "")) || 0 : 0
+  if (!v) return 0
+  const n = Number(v.replace(/,/g, ""))
+  return isNaN(n) ? 0 : n
+}
+
+function isValidNum(row: Record<string, any>, ...keys: string[]): boolean {
+  const v = getCol(row, ...keys)
+  if (!v) return true // empty is ok (defaults to 0)
+  return !isNaN(Number(v.replace(/,/g, "")))
 }
 
 function sheetToRows(buffer: ArrayBuffer): Record<string, any>[] {
@@ -56,6 +64,7 @@ export function parseHotQuotation(buffer: ArrayBuffer): ParseResult {
     if (!companyName) errors.push({ row: rowIndex, field: "Company Name", message: "จำเป็นต้องกรอก" })
     if (!hotness) errors.push({ row: rowIndex, field: "Hotness", message: "จำเป็นต้องกรอก (4 หรือ 5)" })
     else if (hotness !== "4" && hotness !== "5") errors.push({ row: rowIndex, field: "Hotness", message: "ต้องเป็น 4 หรือ 5 เท่านั้น" })
+    if (!isValidNum(row, "Quotation Amount", "Amount")) warnings.push({ row: rowIndex, field: "Quotation Amount", message: "ค่าตัวเลขไม่ถูกต้อง จะถือเป็น 0" })
 
     // Handle bundle products: split " | " into multiple rows
     const products = rawProduct ? rawProduct.split(" | ").map((p: string) => p.trim()).filter(Boolean) : [rawProduct || ""]
@@ -110,7 +119,8 @@ export function parseSalesOrder(buffer: ArrayBuffer): ParseResult {
 
     if (!orderNo) errors.push({ row: rowIndex, field: "Order No.", message: "จำเป็นต้องกรอก" })
     if (!companyName) errors.push({ row: rowIndex, field: "Company Name", message: "จำเป็นต้องกรอก" })
-    if (orderAmount <= 0) warnings.push({ row: rowIndex, field: "Order Amount", message: "จำนวนเงินควรมากกว่า 0" })
+    if (!isValidNum(row, "Order Amount", "Amount")) warnings.push({ row: rowIndex, field: "Order Amount", message: "ค่าตัวเลขไม่ถูกต้อง จะถือเป็น 0" })
+    else if (orderAmount <= 0) warnings.push({ row: rowIndex, field: "Order Amount", message: "จำนวนเงินควรมากกว่า 0" })
 
     const data: ParsedSalesOrder = {
       orderNo,

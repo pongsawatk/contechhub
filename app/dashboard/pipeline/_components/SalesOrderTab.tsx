@@ -19,13 +19,24 @@ export default function SalesOrderTab({ orders, customers, currentUser }: Props)
   const [showImport, setShowImport] = useState(false)
   const [filterRevType, setFilterRevType] = useState("")
   const [filterRecog, setFilterRecog] = useState("")
+  const [dateRange, setDateRange] = useState<"all" | "this-month" | "last-month">("all")
   const [search, setSearch] = useState("")
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [revenueFormId, setRevenueFormId] = useState<string | null>(null)
 
+  const now = new Date()
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+
   const filtered = orders.filter((o) => {
     if (filterRevType && o.revenueType !== filterRevType) return false
     if (filterRecog && o.recognitionStatus !== filterRecog) return false
+    if (dateRange !== "all") {
+      const d = o.closeDate ? new Date(o.closeDate) : null
+      if (dateRange === "this-month" && (!d || d < startOfThisMonth || d > now)) return false
+      if (dateRange === "last-month" && (!d || d < startOfLastMonth || d > endOfLastMonth)) return false
+    }
     if (search) {
       const s = search.toLowerCase()
       const hit = o.entryName.toLowerCase().includes(s) || o.orderNo.toLowerCase().includes(s) || o.contactName.toLowerCase().includes(s)
@@ -61,6 +72,15 @@ export default function SalesOrderTab({ orders, customers, currentUser }: Props)
             <option value="">\u0e17\u0e38\u0e01 Recognition</option>
             {["Pending", "Partially Recognized", "Fully Recognized", "Cancelled"].map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
+          <div className="flex gap-1">
+            {([["all", "ทั้งหมด"], ["this-month", "เดือนนี้"], ["last-month", "เดือนที่แล้ว"]] as const).map(([val, label]) => (
+              <button key={val} onClick={() => setDateRange(val)}
+                className={"px-2.5 py-1.5 text-xs rounded-lg border transition-all " +
+                  (dateRange === val ? "border-accent-cyan text-accent-cyan bg-accent-cyan/10" : "border-white/20 text-white/50 hover:border-white/40")}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         {canImport && (
           <div className="flex gap-2">

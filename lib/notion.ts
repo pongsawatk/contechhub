@@ -17,6 +17,20 @@ function checkboxProp(p: any): boolean { return p?.checkbox ?? false }
 function numberProp(p: any): number { return p?.number ?? 0 }
 function peopleName(p: any): string { return p?.people?.[0]?.name ?? "" }
 function peopleEmail(p: any): string { return p?.people?.[0]?.person?.email ?? "" }
+
+let _notionUsersCache: { id: string; name: string }[] | null = null
+async function findNotionUserByName(name: string): Promise<string | null> {
+  if (!name) return null
+  try {
+    if (!_notionUsersCache) {
+      const r = await notion.users.list({})
+      _notionUsersCache = r.results.map((u: any) => ({ id: u.id, name: (u.name ?? "") as string }))
+    }
+    return _notionUsersCache.find((u) => u.name.toLowerCase() === name.toLowerCase())?.id ?? null
+  } catch {
+    return null
+  }
+}
 function dateProp(p: any): string | null { return p?.date?.start ?? null }
 export async function getUserProfile(email: string): Promise<UserProfile | null> {
   try {
@@ -337,6 +351,7 @@ export async function createHotQuotation(data: {
 }): Promise<string> {
   const hotnessMap: Record<string, string> = { "5": "5 \u2014 \u0e23\u0e49\u0e2d\u0e19\u0e21\u0e32\u0e01", "4": "4 \u2014 \u0e23\u0e49\u0e2d\u0e19" }
   const entryName = data.quotationNo + " \u2014 " + data.product
+  const ownerId = await findNotionUserByName(data.salesOwner)
   const page = await notion.pages.create({
     parent: { database_id: process.env.NOTION_HOT_QUOTATION_DB_ID! },
     properties: {
@@ -350,6 +365,7 @@ export async function createHotQuotation(data: {
       "Lane": data.lane ? { select: { name: data.lane } } : {},
       "Stage": data.stage ? { select: { name: data.stage } } : {},
       "Status": { select: { name: data.status || "Active" } },
+      "Sales Owner": ownerId ? { people: [{ id: ownerId }] } : {},
       "Expected Close": data.expectedClose ? { date: { start: data.expectedClose } } : {},
       "Last Activity": data.lastActivity ? { date: { start: data.lastActivity } } : {},
       "Import Batch": { rich_text: [{ text: { content: data.importBatch } }] },
@@ -361,6 +377,7 @@ export async function createHotQuotation(data: {
 
 export async function updateHotQuotation(id: string, data: Parameters<typeof createHotQuotation>[0]): Promise<void> {
   const hotnessMap: Record<string, string> = { "5": "5 \u2014 \u0e23\u0e49\u0e2d\u0e19\u0e21\u0e32\u0e01", "4": "4 \u2014 \u0e23\u0e49\u0e2d\u0e19" }
+  const ownerId = await findNotionUserByName(data.salesOwner)
   await notion.pages.update({
     page_id: id,
     properties: {
@@ -372,6 +389,7 @@ export async function updateHotQuotation(id: string, data: Parameters<typeof cre
       "Hotness": data.hotness ? { select: { name: hotnessMap[data.hotness] ?? data.hotness } } : {},
       "Lane": data.lane ? { select: { name: data.lane } } : {},
       "Stage": data.stage ? { select: { name: data.stage } } : {},
+      "Sales Owner": ownerId ? { people: [{ id: ownerId }] } : {},
       "Expected Close": data.expectedClose ? { date: { start: data.expectedClose } } : {},
       "Last Activity": data.lastActivity ? { date: { start: data.lastActivity } } : {},
       "Import Batch": { rich_text: [{ text: { content: data.importBatch } }] },
@@ -445,8 +463,8 @@ export async function createSalesOrder(data: {
   contractMonths: number; salesOwner: string; paymentTerms: string
   importBatch: string; notes: string
 }): Promise<string> {
-  const companyPart = data.orderNo
   const entryName = data.orderNo + " \u2014 " + data.product
+  const ownerId = await findNotionUserByName(data.salesOwner)
   const page = await notion.pages.create({
     parent: { database_id: process.env.NOTION_SALES_ORDER_DB_ID! },
     properties: {
@@ -463,14 +481,38 @@ export async function createSalesOrder(data: {
       "Close Date": data.closeDate ? { date: { start: data.closeDate } } : {},
       "Expected Go-live": data.expectedGoLive ? { date: { start: data.expectedGoLive } } : {},
       "Contract Months": { number: data.contractMonths },
+      "Sales Owner": ownerId ? { people: [{ id: ownerId }] } : {},
       "Payment Terms": data.paymentTerms ? { select: { name: data.paymentTerms } } : {},
       "Recognition Status": { select: { name: "Pending" } },
       "Import Batch": { rich_text: [{ text: { content: data.importBatch } }] },
       "Notes": { rich_text: [{ text: { content: data.notes } }] },
     } as any,
   })
-  void companyPart
   return page.id
+}
+
+export async function updateSalesOrder(id: string, data: Parameters<typeof createSalesOrder>[0]): Promise<void> {
+  const ownerId = await findNotionUserByName(data.salesOwner)
+  await notion.pages.update({
+    page_id: id,
+    properties: {
+      "Quotation No.": { rich_text: [{ text: { content: data.quotationNo } }] },
+      "Customer": data.customerId ? { relation: [{ id: data.customerId }] } : {},
+      "Hot Quotation": data.hotQuotationId ? { relation: [{ id: data.hotQuotationId }] } : {},
+      "Contact Name": { rich_text: [{ text: { content: data.contactName } }] },
+      "Product": data.product ? { select: { name: data.product } } : {},
+      "Order Amount (THB)": { number: data.orderAmount },
+      "Lane": data.lane ? { select: { name: data.lane } } : {},
+      "Revenue Type": data.revenueType ? { select: { name: data.revenueType } } : {},
+      "Close Date": data.closeDate ? { date: { start: data.closeDate } } : {},
+      "Expected Go-live": data.expectedGoLive ? { date: { start: data.expectedGoLive } } : {},
+      "Contract Months": { number: data.contractMonths },
+      "Sales Owner": ownerId ? { people: [{ id: ownerId }] } : {},
+      "Payment Terms": data.paymentTerms ? { select: { name: data.paymentTerms } } : {},
+      "Import Batch": { rich_text: [{ text: { content: data.importBatch } }] },
+      "Notes": { rich_text: [{ text: { content: data.notes } }] },
+    } as any,
+  })
 }
 
 export async function updateSalesOrderRevenue(

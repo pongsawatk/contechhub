@@ -23,7 +23,7 @@ export default function ExcelImportModal({ type, existingKeys, customers, onClos
   const [file, setFile] = useState<File | null>(null)
   const [rows, setRows] = useState<ParsedRow[]>([])
   const [duplicates, setDuplicates] = useState<string[]>([])
-  const [dupAction, setDupAction] = useState<"skip" | "overwrite">("skip")
+  const [perRowAction, setPerRowAction] = useState<Record<string, "skip" | "overwrite">>({})
   const [newCompanies, setNewCompanies] = useState<string[]>([])
   const [autoCreate, setAutoCreate] = useState(true)
 
@@ -48,6 +48,9 @@ export default function ExcelImportModal({ type, existingKeys, customers, onClos
         if (existingKeys.includes(key)) dups.push(key)
       }
       setDuplicates(dups)
+      const initActions: Record<string, "skip" | "overwrite"> = {}
+      dups.forEach((k) => { initActions[k] = "skip" })
+      setPerRowAction(initActions)
       const companies = new Set(parsed.all.map((r) => (r.data as any).companyName).filter(Boolean))
       setNewCompanies([...companies].filter((c) => !customerNames.has(c)))
       setStep("preview")
@@ -67,7 +70,8 @@ export default function ExcelImportModal({ type, existingKeys, customers, onClos
         body: JSON.stringify({
           rows: validRows.map((r) => r.data),
           importBatch: file?.name ?? "import",
-          skipDuplicates: dupAction === "skip",
+          skipKeys: Object.entries(perRowAction).filter(([, v]) => v === "skip").map(([k]) => k),
+          autoCreate,
         }),
       })
       setProgress(90)
@@ -120,12 +124,27 @@ export default function ExcelImportModal({ type, existingKeys, customers, onClos
                 {invalidCount > 0 && <span className="text-red-400">\u2717 {invalidCount} \u0e41\u0e16\u0e27\u0e21\u0e35\u0e02\u0e49\u0e2d\u0e1c\u0e34\u0e14\u0e1e\u0e25\u0e32\u0e14</span>}
               </div>
               <ImportPreviewTable rows={rows} type={type} />
-              {duplicates.length > 0 && <DuplicateWarning duplicates={duplicates} action={dupAction} onAction={setDupAction} />}
+              {duplicates.length > 0 && (
+                <DuplicateWarning
+                  duplicates={duplicates}
+                  perRowAction={perRowAction}
+                  onRowAction={(key, action) => setPerRowAction((prev) => ({ ...prev, [key]: action }))}
+                />
+              )}
               {newCompanies.length > 0 && <CustomerAutoCreate newCompanies={newCompanies} autoCreate={autoCreate} onToggle={setAutoCreate} />}
               <div className="bg-white/5 rounded-lg p-3 text-sm text-white/60">
-                \u0e08\u0e30 Import {validCount} \u0e23\u0e32\u0e22\u0e01\u0e32\u0e23
-                {dupAction === "skip" && duplicates.length > 0 ? " (\u0e02\u0e49\u0e32\u0e21 " + duplicates.length + " \u0e0b\u0e49\u0e33)" : ""}
-                {newCompanies.length > 0 && autoCreate ? " \u0e2a\u0e23\u0e49\u0e32\u0e07\u0e25\u0e39\u0e01\u0e04\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48 " + newCompanies.length + " \u0e23\u0e32\u0e22" : ""}
+                {(() => {
+                  const skipCount = Object.values(perRowAction).filter((v) => v === "skip").length
+                  const overCount = Object.values(perRowAction).filter((v) => v === "overwrite").length
+                  return (
+                    <>
+                      จะ Import {validCount} รายการ
+                      {skipCount > 0 && <span className="text-white/40"> · ข้าม {skipCount} ซ้ำ</span>}
+                      {overCount > 0 && <span className="text-yellow-400/70"> · อัปเดต {overCount} ซ้ำ</span>}
+                      {newCompanies.length > 0 && autoCreate && <span className="text-accent-cyan/70"> · สร้างลูกค้าใหม่ {newCompanies.length} ราย</span>}
+                    </>
+                  )
+                })()}
               </div>
               <div className="flex gap-3">
                 <button onClick={() => { setStep("upload"); setRows([]) }} className="flex-1 glass-ghost py-2 text-sm rounded-lg">\u0e40\u0e25\u0e37\u0e2d\u0e01\u0e44\u0e1f\u0e25\u0e4c\u0e43\u0e2b\u0e21\u0e48</button>

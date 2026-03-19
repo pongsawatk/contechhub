@@ -16,10 +16,11 @@ export default function PipelineSummary({ quotations, orders }: Props) {
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const wonOrders = orders.filter((o) => {
+  const mtdOrders = orders.filter((o) => {
     const d = o.closeDate ? new Date(o.closeDate) : null
-    return d && d >= startOfMonth
+    return d && d >= startOfMonth && d <= now
   })
+  const wonOrders = mtdOrders
   const totalOrderAmount = wonOrders.reduce((s, o) => s + o.orderAmount, 0)
   const avgDeal = wonOrders.length > 0 ? totalOrderAmount / wonOrders.length : 0
   const revenueTypes = ["New Logo Biz", "New Logo Corp", "Add-on", "Renewal", "Service"]
@@ -28,6 +29,7 @@ export default function PipelineSummary({ quotations, orders }: Props) {
 
   const totalBooking = orders.reduce((s, o) => s + o.orderAmount, 0)
   const totalRecognized = orders.reduce((s, o) => s + o.revenueAmount, 0)
+  const mtdBooking = mtdOrders.reduce((s, o) => s + o.orderAmount, 0)
   const recPct = totalBooking > 0 ? Math.round((totalRecognized / totalBooking) * 100) : 0
 
   return (
@@ -90,8 +92,9 @@ export default function PipelineSummary({ quotations, orders }: Props) {
           <h3 className="text-white font-semibold">Revenue</h3>
         </div>
         <div>
-          <div className="text-accent-cyan text-lg font-semibold">{formatTHB(totalBooking)} THB</div>
-          <div className="text-white/50 text-sm">Total Booking</div>
+          <div className="text-3xl font-bold text-white">{formatTHB(mtdBooking)} THB</div>
+          <div className="text-white/50 text-sm">MTD Booking</div>
+          <div className="text-white/30 text-xs mt-0.5">รวมทั้งหมด: {formatTHB(totalBooking)}</div>
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">

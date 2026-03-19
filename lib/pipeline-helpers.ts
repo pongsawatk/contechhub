@@ -33,12 +33,14 @@ export function parseDateDMY(s: string): string | null {
   if (!s) return null
   const parts = s.split("/")
   if (parts.length === 3) {
-    const [d, m, y] = parts
-    const year = Number(y) > 100 ? Number(y) : 2000 + Number(y)
-    const date = new Date(year, Number(m) - 1, Number(d))
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0]
-    }
+    const day = Number(parts[0]), month = Number(parts[1]), rawYear = Number(parts[2])
+    if (!day || !month || !rawYear) return null
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null
+    const year = rawYear > 100 ? rawYear : 2000 + rawYear
+    const date = new Date(year, month - 1, day)
+    // Reject JS auto-rollover (e.g. 31/02 → March)
+    if (date.getMonth() !== month - 1 || date.getDate() !== day) return null
+    return date.toISOString().split("T")[0]
   }
   // Try ISO format as fallback
   const d = new Date(s)

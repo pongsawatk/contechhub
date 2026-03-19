@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { getHotQuotations, findHotQuotation, createHotQuotation, updateHotQuotation, findOrCreateCustomer } from "@/lib/notion"
+import { getHotQuotations, findHotQuotation, createHotQuotation, updateHotQuotation, findOrCreateCustomer, findCustomerByName } from "@/lib/notion"
 import type { ParsedHotQuotation } from "@/types/pipeline"
 
 export async function GET() {
@@ -22,14 +22,19 @@ export async function POST(request: NextRequest) {
     const appRole = session.user?.profile?.appRole
     if (appRole !== "admin" && appRole !== "bu_member") return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 })
 
-    const body: { rows: ParsedHotQuotation[]; importBatch: string; skipDuplicates: boolean } = await request.json()
+    const body: { rows: ParsedHotQuotation[]; importBatch: string; skipKeys: string[]; autoCreate: boolean } = await request.json()
     let created = 0; let updated = 0; let skipped = 0
     const errors: string[] = []
 
     for (const row of body.rows) {
       try {
-        const customerId = await findOrCreateCustomer(row.companyName)
+        const rowKey = row.quotationNo + "|" + row.product
         const existingId = await findHotQuotation(row.quotationNo, row.product)
+        if (existingId && body.skipKeys.includes(rowKey)) { skipped++; continue }
+
+        const customerId = body.autoCreate
+          ? await findOrCreateCustomer(row.companyName)
+          : (await findCustomerByName(row.companyName)) ?? ""
         const payload = {
           quotationNo: row.quotationNo, product: row.product, customerId,
           contactName: row.contactName, quotationAmount: row.quotationAmount,
@@ -39,7 +44,6 @@ export async function POST(request: NextRequest) {
           importBatch: body.importBatch, notes: row.notes,
         }
         if (existingId) {
-          if (body.skipDuplicates) { skipped++; continue }
           await updateHotQuotation(existingId, payload)
           updated++
         } else {

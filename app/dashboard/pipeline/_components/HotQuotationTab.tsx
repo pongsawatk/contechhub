@@ -20,6 +20,8 @@ export default function HotQuotationTab({ quotations, customers, currentUser }: 
   const [filterStage, setFilterStage] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
   const [filterHotness, setFilterHotness] = useState("")
+  const [filterLane, setFilterLane] = useState("")
+  const [filterOwner, setFilterOwner] = useState("")
   const [search, setSearch] = useState("")
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -28,6 +30,8 @@ export default function HotQuotationTab({ quotations, customers, currentUser }: 
     if (filterStage && q.stage !== filterStage) return false
     if (filterStatus && q.status !== filterStatus) return false
     if (filterHotness && q.hotness !== filterHotness) return false
+    if (filterLane && q.lane !== filterLane) return false
+    if (filterOwner && !q.ownerName.toLowerCase().includes(filterOwner.toLowerCase())) return false
     if (search) {
       const s = search.toLowerCase()
       const hit = q.entryName.toLowerCase().includes(s) || q.quotationNo.toLowerCase().includes(s) || q.contactName.toLowerCase().includes(s)
@@ -67,6 +71,16 @@ export default function HotQuotationTab({ quotations, customers, currentUser }: 
             <option value="">\u0e17\u0e38\u0e01 Status</option>
             {["Active", "Won", "Lost", "On Hold"].map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
+          <select value={filterLane} onChange={(e) => setFilterLane(e.target.value)} className="glass-input px-3 py-1.5 text-sm rounded-lg">
+            <option value="">ทุก Lane</option>
+            {["Biz", "Corp"].map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <input
+            value={filterOwner}
+            onChange={(e) => setFilterOwner(e.target.value)}
+            placeholder="Owner..."
+            className="glass-input px-3 py-1.5 text-sm rounded-lg w-32"
+          />
           <select value={filterHotness} onChange={(e) => setFilterHotness(e.target.value)} className="glass-input px-3 py-1.5 text-sm rounded-lg">
             <option value="">\u0e17\u0e38\u0e01 Hotness</option>
             <option value="5">5 \uD83D\uDD25\uD83D\uDD25</option>
