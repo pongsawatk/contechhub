@@ -11,10 +11,12 @@ export interface UsageSummary {
 
 export async function getUsageStats(): Promise<UsageSummary> {
   try {
+    // @ts-expect-error - Custom data_source_id property is not in Notion SDK types
     const response = await (notion as any).dataSources.query({
       data_source_id: process.env.NOTION_QUOTES_DB_ID!,
     });
 
+    // @ts-expect-error - Casting results to access properties
     const quotes = response.results as any[];
     const totalQuotes = quotes.length;
     

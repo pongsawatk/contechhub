@@ -103,7 +103,7 @@ export default function ProgressPage() {
           <ul className="space-y-3 mt-4">
             <li className="flex items-start gap-3 text-sm text-blue-100/70">
               <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] mt-0.5">1</div>
-              Connect to Notion "Projects" and "Tasks" databases
+              Connect to Notion &quot;Projects&quot; and &quot;Tasks&quot; databases
             </li>
             <li className="flex items-start gap-3 text-sm text-blue-100/70">
               <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] mt-0.5">2</div>
