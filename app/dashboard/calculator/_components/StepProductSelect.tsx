@@ -62,6 +62,7 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
         packageBilling: 'ราย ปี',
         addonIds: [],
         addons: [],
+        topups: [],
       }
       onChange({ selections: [...input.selections, newSel] })
     }

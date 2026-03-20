@@ -1,9 +1,9 @@
 'use client'
 
-import type { CalculatorInput, ProductSelection, AddonItem } from '@/types/calculator'
+import type { CalculatorInput, ProductSelection, AddonItem, TopupSelection } from '@/types/calculator'
 import type { PricingItem } from '@/types/pricing'
 import HintBanner from './HintBanner'
-import { calculate } from '@/lib/pricing-engine'
+import { calculate, itemAppliesTo } from '@/lib/pricing-engine'
 
 interface StepPackageConfigProps {
   input: CalculatorInput
@@ -28,6 +28,122 @@ function formatTHB(n: number): string {
   return n.toLocaleString('th-TH')
 }
 
+// ── TopupRow Component ─────────────────────────────────────────────────
+interface TopupRowProps {
+  item: PricingItem
+  currentQuantity: number
+  onChange: (qty: number) => void
+}
+
+function TopupRow({ item, currentQuantity, onChange }: TopupRowProps) {
+  if (item.quantityEnabled) {
+    // Quantity stepper mode
+    const maxQty = item.maxQuantity > 0 ? item.maxQuantity : 99
+    return (
+      <div className="space-y-1">
+        <div
+          className="flex items-center justify-between p-3 rounded-xl transition-all"
+          style={{
+            background: currentQuantity > 0 ? 'rgba(74, 222, 128, 0.08)' : 'rgba(10, 30, 70, 0.35)',
+            border: currentQuantity > 0
+              ? '1px solid rgba(74, 222, 128, 0.3)'
+              : '1px solid rgba(255,255,255,0.07)',
+          }}
+        >
+          <div className="flex-1 min-w-0 mr-3">
+            <p className="text-white text-sm font-medium truncate">{item.packageName}</p>
+            <p className="text-white/45 text-xs mt-0.5">
+              {formatTHB(item.price)} บ. / {item.quantityUnit || 'หน่วย'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {currentQuantity > 0 && (
+              <p className="text-[#4ade80] text-sm tabular-nums font-medium">
+                = {formatTHB(item.price * currentQuantity)} บ.
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onChange(Math.max(0, currentQuantity - 1))}
+                disabled={currentQuantity === 0}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: currentQuantity === 0 ? 'rgba(255,255,255,0.25)' : 'white',
+                  cursor: currentQuantity === 0 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                −
+              </button>
+              <span className="text-white font-semibold w-6 text-center tabular-nums text-sm">
+                {currentQuantity}
+              </span>
+              <button
+                onClick={() => onChange(Math.min(maxQty, currentQuantity + 1))}
+                disabled={item.maxQuantity > 0 && currentQuantity >= item.maxQuantity}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: (item.maxQuantity > 0 && currentQuantity >= item.maxQuantity)
+                    ? 'rgba(255,255,255,0.25)'
+                    : 'white',
+                  cursor: (item.maxQuantity > 0 && currentQuantity >= item.maxQuantity)
+                    ? 'not-allowed'
+                    : 'pointer',
+                }}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+        {item.maxQuantity > 0 && (
+          <p className="text-white/30 text-[11px] pl-1">
+            สูงสุด {item.maxQuantity} {item.quantityUnit}
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  // Checkbox mode (same style as add-ons)
+  const isSelected = currentQuantity > 0
+  return (
+    <button
+      onClick={() => onChange(isSelected ? 0 : 1)}
+      className="w-full text-left rounded-xl p-3 transition-all"
+      style={{
+        background: isSelected ? 'rgba(74, 222, 128, 0.08)' : 'rgba(10, 30, 70, 0.35)',
+        border: isSelected
+          ? '1.5px solid rgba(74, 222, 128, 0.3)'
+          : '1px solid rgba(255,255,255,0.07)',
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div
+            className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center text-[10px]"
+            style={{
+              background: isSelected ? 'rgba(74, 222, 128, 0.85)' : 'rgba(255,255,255,0.08)',
+              border: isSelected ? '1px solid rgba(74, 222, 128, 0.9)' : '1px solid rgba(255,255,255,0.2)',
+            }}
+          >
+            {isSelected && <span className="text-white">✓</span>}
+          </div>
+          <span className="text-white/85 text-sm">{item.packageName}</span>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-white/70 text-sm font-medium">{formatTHB(item.price)}</p>
+          <p className="text-white/35 text-xs">บ./ปี</p>
+        </div>
+      </div>
+    </button>
+  )
+}
+
+// ── Main Component ────────────────────────────────────────────────────
 export default function StepPackageConfig({ input, onChange, pricingItems }: StepPackageConfigProps) {
   const breakdown = calculate(input)
 
@@ -37,6 +153,34 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
         s.product === productId ? { ...s, ...patch } : s
       ),
     })
+  }
+
+  function handleTopupChange(product: string, item: PricingItem, qty: number) {
+    const sel = input.selections.find((s) => s.product === product)
+    if (!sel) return
+    const existing = (sel.topups ?? []).find((t) => t.itemId === item.id)
+    let newTopups: TopupSelection[]
+    if (qty === 0) {
+      newTopups = (sel.topups ?? []).filter((t) => t.itemId !== item.id)
+    } else if (existing) {
+      newTopups = (sel.topups ?? []).map((t) =>
+        t.itemId === item.id ? { ...t, quantity: qty } : t
+      )
+    } else {
+      newTopups = [...(sel.topups ?? []), {
+        itemId: item.id,
+        itemName: item.packageName,
+        quantity: qty,
+        unitPrice: item.price,
+        billing: item.billing || 'ราย ปี',
+        quantityUnit: item.quantityUnit,
+      }]
+    }
+    updateSelection(product, { topups: newTopups })
+  }
+
+  function getCurrentTopupQty(sel: ProductSelection, itemId: string): number {
+    return (sel.topups ?? []).find((t) => t.itemId === itemId)?.quantity ?? 0
   }
 
   return (
@@ -65,6 +209,14 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             (item.lane === input.lane || item.lane === 'Both' || item.lane === '')
         )
 
+        // Filter applicable top-ups for this product & selected package
+        const applicableTopups = pricingItems.filter(
+          (item) =>
+            item.product === sel.product &&
+            item.type === 'Top-up' &&
+            itemAppliesTo(item, sel.packageName)
+        )
+
         const isProfessional = sel.packageName.toLowerCase().includes('professional')
         const INCLUDED_IN_PRO = [
           'Defect Management',
@@ -74,7 +226,7 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
         ]
 
         function handlePackageSelect(pkg: PricingItem) {
-          // When switching package, clear add-ons
+          // When switching package, clear add-ons and topups
           updateSelection(sel.product, {
             packageId: pkg.id,
             packageName: pkg.packageName,
@@ -82,6 +234,7 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             packageBilling: pkg.billing || 'ราย ปี',
             addonIds: [],
             addons: [],
+            topups: [],
           })
         }
 
@@ -331,6 +484,23 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                       </button>
                     )
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Top-up Section */}
+            {sel.packageId && applicableTopups.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-white/50 text-xs uppercase tracking-wide">ต้องการเพิ่มเติม?</p>
+                <div className="space-y-3">
+                  {applicableTopups.map((item) => (
+                    <TopupRow
+                      key={item.id}
+                      item={item}
+                      currentQuantity={getCurrentTopupQty(sel, item.id)}
+                      onChange={(qty) => handleTopupChange(sel.product, item, qty)}
+                    />
+                  ))}
                 </div>
               </div>
             )}

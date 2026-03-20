@@ -1,4 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Client } from "@notionhq/client"
 import type { UserProfile } from "@/types/user"
 import type { PricingItem } from "@/types/pricing"
@@ -102,6 +102,11 @@ export async function getPricingPackages(isContechBU = false): Promise<PricingIt
           visibility: visibility as PricingItem["visibility"],
           sortOrder: prop(page, "Sort Order")?.number ?? 999,
           effectiveDate: prop(page, "Effective Date")?.date?.start ?? null,
+          applicablePackages: (prop(page, "Applicable Packages")?.multi_select ?? [])
+            .map((s: any) => s.name),
+          quantityEnabled: prop(page, "Quantity Enabled")?.checkbox ?? false,
+          quantityUnit: prop(page, "Quantity Unit")?.rich_text?.[0]?.plain_text ?? '',
+          maxQuantity: prop(page, "Max Quantity")?.number ?? 0,
         } as PricingItem
       })
       .filter(Boolean) as PricingItem[]

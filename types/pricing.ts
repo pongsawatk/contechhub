@@ -13,4 +13,8 @@ export interface PricingItem {
   visibility: 'Public' | 'Internal Only' | 'Hidden' | ''
   sortOrder: number
   effectiveDate: string | null
+  applicablePackages: string[]  // from "Applicable Packages" multi_select
+  quantityEnabled: boolean      // from "Quantity Enabled" checkbox
+  quantityUnit: string          // from "Quantity Unit" text
+  maxQuantity: number           // from "Max Quantity" number, 0 = no limit
 }

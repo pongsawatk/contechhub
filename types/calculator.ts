@@ -1,5 +1,14 @@
 export type LaneType = 'Biz' | 'Corp'
 
+export interface TopupSelection {
+  itemId: string
+  itemName: string
+  quantity: number        // 1+ for quantity-enabled, always 1 for checkbox
+  unitPrice: number
+  billing: string
+  quantityUnit: string
+}
+
 export interface ProductSelection {
   product: 'Builk Insite' | 'Builk 360' | 'Kwanjai'
   packageId: string        // Notion page ID of selected package
@@ -8,6 +17,7 @@ export interface ProductSelection {
   packageBilling: string
   addonIds: string[]       // Notion page IDs of selected add-ons
   addons: AddonItem[]
+  topups: TopupSelection[]  // quantity-based or checkbox top-up items
 }
 
 export interface AddonItem {

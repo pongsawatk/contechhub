@@ -5,6 +5,22 @@ import type {
   AppliedOffer,
   HintItem,
 } from '@/types/calculator'
+import type { PricingItem } from '@/types/pricing'
+
+/**
+ * Returns true if the given PricingItem applies to the selected package name.
+ * If applicablePackages is empty or contains 'All', it applies to everything.
+ */
+export function itemAppliesTo(item: PricingItem, packageName: string): boolean {
+  if (!item.applicablePackages || item.applicablePackages.length === 0) return true
+  if (item.applicablePackages.includes('All')) return true
+  // Normalize: "Insite Professional" matches "Professional" in packageName
+  return item.applicablePackages.some(
+    (ap) =>
+      packageName.toLowerCase().includes(ap.toLowerCase().replace('insite ', '').replace('360 ', ''))
+      || packageName.toLowerCase().includes(ap.toLowerCase())
+  )
+}
 
 export function calculate(input: CalculatorInput): PriceBreakdown {
   const lineItems: LineItem[] = []
@@ -34,6 +50,22 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
         billing: addon.billing,
       })
       addonTotal += addon.price
+    }
+
+    // --- Top-ups ---
+    for (const topup of (sel.topups ?? [])) {
+      if (topup.quantity > 0) {
+        const unitLabel = topup.quantityUnit
+          ? `${topup.quantity} ${topup.quantityUnit}`
+          : `×${topup.quantity}`
+        lineItems.push({
+          label: `${topup.itemName} (${unitLabel})`,
+          sublabel: `Top-up — ${sel.product}`,
+          price: topup.unitPrice * topup.quantity,
+          billing: topup.billing,
+        })
+        addonTotal += topup.unitPrice * topup.quantity
+      }
     }
   }
 
