@@ -164,8 +164,11 @@ export default function StepSpecialOptions({ input, breakdown, onChange }: StepS
           </div>
         )}
 
-        {/* >10% warning */}
-        {breakdown.approvalRequired && (
+        {/* Approval warnings */}
+        {breakdown.hasEnterpriseDeal && (
+          <WarningBanner message="Enterprise Deal — ต้องขออนุมัติ Head of BU เสมอ" />
+        )}
+        {!breakdown.hasEnterpriseDeal && input.discountPercent > 10 && (
           <WarningBanner message="ส่วนลดเกิน 10% ต้องการ Approval จาก Head of BU" />
         )}
       </div>

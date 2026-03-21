@@ -263,6 +263,7 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
           (item) =>
             item.product === sel.product &&
             item.type === 'Add-on' &&
+            itemAppliesTo(item, sel.packageName) &&
             (item.lane === input.lane || item.lane === 'Both' || item.lane === '')
         )
 
@@ -460,7 +461,23 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
               <EnterpriseTierToggle
                 tier={currentTier}
                 packageName={sel.packageName}
-                onChange={(tier) => updateSelection(sel.product, { enterpriseTier: tier })}
+                onChange={(tier) => {
+                  if (sel.product === 'Builk 360' && tier === 'premium') {
+                    // Remove auto-included add-ons from selection when switching to Premium
+                    const includedNames = ['MS-Teams', 'Drone Footage Integration']
+                    const includedIds = pricingItems
+                      .filter((i) => includedNames.includes(i.packageName))
+                      .map((i) => i.id)
+
+                    updateSelection(sel.product, {
+                      enterpriseTier: tier,
+                      addonIds: sel.addonIds.filter((id) => !includedIds.includes(id)),
+                      addons: sel.addons.filter((a) => !includedNames.includes(a.name)),
+                    })
+                  } else {
+                    updateSelection(sel.product, { enterpriseTier: tier })
+                  }
+                }}
               />
             )}
 

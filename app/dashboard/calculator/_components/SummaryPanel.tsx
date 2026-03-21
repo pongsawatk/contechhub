@@ -74,7 +74,21 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
                 : null
               return (
                 <div key={i}>
-                  <SummaryLineItem item={item} />
+                  {enterpriseSel && enterpriseSel.packageName === item.label ? (
+                    <div className="flex justify-between items-start py-2">
+                      <div className="flex-1 min-w-0 pr-4">
+                        <p className="text-white text-sm font-medium leading-snug">{item.label}</p>
+                        {item.sublabel && <p className="text-white/45 text-xs truncate mt-0.5">{item.sublabel}</p>}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-amber-300 font-semibold text-sm tabular-nums whitespace-nowrap">
+                          {getEnterprisePriceRange(item.label)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <SummaryLineItem item={item} />
+                  )}
                   {tierBadge && (
                     <div className="flex justify-end mt-0.5 mb-1">
                       <span
