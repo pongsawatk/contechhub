@@ -8,6 +8,8 @@ export const revalidate = 3600
 export default async function PricingPage() {
   const session = await auth()
   const isContechBU = session?.user?.profile?.buMembership === 'Contech BU'
+  const appRole = session?.user?.profile?.appRole
+  const isAdminOrBU = appRole === 'admin' || appRole === 'bu_member'
   const items = await getPricingPackages(isContechBU)
 
   return (
@@ -18,7 +20,7 @@ export default async function PricingPage() {
         </div>
       }
     >
-      <PricingDisplay items={items} />
+      <PricingDisplay items={items} isAdminOrBU={isAdminOrBU} />
     </Suspense>
   )
 }

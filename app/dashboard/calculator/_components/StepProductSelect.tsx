@@ -63,6 +63,7 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
         addonIds: [],
         addons: [],
         topups: [],
+        enterpriseTier: undefined,
       }
       onChange({ selections: [...input.selections, newSel] })
     }

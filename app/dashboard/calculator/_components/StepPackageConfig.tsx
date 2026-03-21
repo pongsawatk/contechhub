@@ -3,7 +3,7 @@
 import type { CalculatorInput, ProductSelection, AddonItem, TopupSelection } from '@/types/calculator'
 import type { PricingItem } from '@/types/pricing'
 import HintBanner from './HintBanner'
-import { calculate, itemAppliesTo } from '@/lib/pricing-engine'
+import { calculate, itemAppliesTo, isEnterprisePackage, getPackagePrice } from '@/lib/pricing-engine'
 
 interface StepPackageConfigProps {
   input: CalculatorInput
@@ -37,7 +37,6 @@ interface TopupRowProps {
 
 function TopupRow({ item, currentQuantity, onChange }: TopupRowProps) {
   if (item.quantityEnabled) {
-    // Quantity stepper mode
     const maxQty = item.maxQuantity > 0 ? item.maxQuantity : 99
     return (
       <div className="space-y-1">
@@ -108,7 +107,7 @@ function TopupRow({ item, currentQuantity, onChange }: TopupRowProps) {
     )
   }
 
-  // Checkbox mode (same style as add-ons)
+  // Checkbox mode
   const isSelected = currentQuantity > 0
   return (
     <button
@@ -116,9 +115,7 @@ function TopupRow({ item, currentQuantity, onChange }: TopupRowProps) {
       className="w-full text-left rounded-xl p-3 transition-all"
       style={{
         background: isSelected ? 'rgba(74, 222, 128, 0.08)' : 'rgba(10, 30, 70, 0.35)',
-        border: isSelected
-          ? '1.5px solid rgba(74, 222, 128, 0.3)'
-          : '1px solid rgba(255,255,255,0.07)',
+        border: isSelected ? '1.5px solid rgba(74, 222, 128, 0.3)' : '1px solid rgba(255,255,255,0.07)',
       }}
     >
       <div className="flex items-center justify-between gap-2">
@@ -140,6 +137,64 @@ function TopupRow({ item, currentQuantity, onChange }: TopupRowProps) {
         </div>
       </div>
     </button>
+  )
+}
+
+// ── Enterprise Tier Toggle ─────────────────────────────────────────────
+interface EnterpriseTierToggleProps {
+  tier: 'base' | 'premium'
+  packageName: string
+  onChange: (tier: 'base' | 'premium') => void
+}
+
+function EnterpriseTierToggle({ tier, packageName, onChange }: EnterpriseTierToggleProps) {
+  const basePrice = getPackagePrice(packageName, 'base') ?? 0
+  const premiumPrice = getPackagePrice(packageName, 'premium') ?? 0
+
+  return (
+    <div
+      className="rounded-xl p-4 space-y-3"
+      style={{
+        background: 'rgba(217,119,6,0.08)',
+        border: '1px solid rgba(217,119,6,0.3)',
+      }}
+    >
+      <p className="text-amber-300/80 text-xs font-medium uppercase tracking-wider">
+        👑 Enterprise Tier
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={() => onChange('base')}
+          className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
+          style={{
+            background: tier === 'base' ? 'rgba(217,119,6,0.25)' : 'rgba(255,255,255,0.05)',
+            border: tier === 'base' ? '1.5px solid rgba(217,119,6,0.6)' : '1px solid rgba(255,255,255,0.1)',
+            color: tier === 'base' ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+          }}
+        >
+          Base
+          <span className="block text-xs opacity-70">{formatTHB(basePrice)} บ./ปี</span>
+        </button>
+        <button
+          onClick={() => onChange('premium')}
+          className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all"
+          style={{
+            background: tier === 'premium' ? 'rgba(217,119,6,0.25)' : 'rgba(255,255,255,0.05)',
+            border: tier === 'premium' ? '1.5px solid rgba(217,119,6,0.6)' : '1px solid rgba(255,255,255,0.1)',
+            color: tier === 'premium' ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+          }}
+        >
+          Premium
+          <span className="block text-xs opacity-70">{formatTHB(premiumPrice)} บ./ปี</span>
+        </button>
+      </div>
+      {tier === 'premium' && (
+        <p className="text-amber-200/60 text-[11px]">
+          Premium รวม: SLA 4 ชม. · Monthly Executive QBR
+          {packageName.toLowerCase().includes('360') && ' · MS-Teams · Drone Footage'}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -192,6 +247,8 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
 
       {input.selections.map((sel) => {
         const color = PRODUCT_COLORS[sel.product] ?? '#38bdf8'
+        const isEnterprise = isEnterprisePackage(sel.packageName)
+        const currentTier = sel.enterpriseTier ?? 'base'
 
         // Filter packages for this product & lane
         const packages = pricingItems.filter(
@@ -217,7 +274,13 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             itemAppliesTo(item, sel.packageName)
         )
 
-        const isProfessional = sel.packageName.toLowerCase().includes('professional')
+        const isProfessional = sel.packageName.toLowerCase().includes('professional') && !isEnterprise
+        // For 360 Enterprise Premium: MS-Teams and Drone Footage are auto-included
+        const is360EnterprisePremium = sel.product === 'Builk 360' && isEnterprise && currentTier === 'premium'
+        const ENTERPRISE_360_PREMIUM_INCLUDED = ['MS-Teams', 'Drone Footage Integration']
+        // For Insite Enterprise: no add-ons (all included)
+        const isInsiteEnterprise = sel.product === 'Builk Insite' && isEnterprise
+
         const INCLUDED_IN_PRO = [
           'Defect Management',
           'Line of Approval',
@@ -226,7 +289,7 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
         ]
 
         function handlePackageSelect(pkg: PricingItem) {
-          // When switching package, clear add-ons and topups
+          const pkgIsEnterprise = isEnterprisePackage(pkg.packageName)
           updateSelection(sel.product, {
             packageId: pkg.id,
             packageName: pkg.packageName,
@@ -235,11 +298,14 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             addonIds: [],
             addons: [],
             topups: [],
+            enterpriseTier: pkgIsEnterprise ? 'base' : undefined,
           })
         }
 
         function handleAddonToggle(addon: PricingItem) {
           if (isProfessional && INCLUDED_IN_PRO.includes(addon.packageName)) return
+          if (is360EnterprisePremium && ENTERPRISE_360_PREMIUM_INCLUDED.includes(addon.packageName)) return
+          if (isInsiteEnterprise) return
           const isSelected = sel.addonIds.includes(addon.id)
           if (isSelected) {
             updateSelection(sel.product, {
@@ -260,7 +326,6 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
           }
         }
 
-        // Handle Productivity Pack upgrade hint CTA
         function handleHintAction() {
           const productivityPack = pricingItems.find(
             (item) =>
@@ -270,17 +335,14 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
           if (productivityPack) {
             updateSelection(sel.product, {
               addonIds: [productivityPack.id],
-              addons: [
-                {
-                  id: productivityPack.id,
-                  name: productivityPack.packageName,
-                  price: productivityPack.price,
-                  billing: productivityPack.billing || 'ราย ปี',
-                },
-              ],
+              addons: [{
+                id: productivityPack.id,
+                name: productivityPack.packageName,
+                price: productivityPack.price,
+                billing: productivityPack.billing || 'ราย ปี',
+              }],
             })
           } else {
-            // Fallback: clear addons and note
             updateSelection(sel.product, { addonIds: [], addons: [] })
           }
         }
@@ -296,10 +358,7 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
           >
             {/* Product header */}
             <div className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: color }}
-              />
+              <div className="w-2 h-2 rounded-full" style={{ background: color }} />
               <h4 className="text-white font-semibold text-sm">{sel.product}</h4>
             </div>
 
@@ -310,9 +369,8 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                 <div className="space-y-2">
                   {packages.map((pkg) => {
                     const isSelected = sel.packageId === pkg.id
-                    const isBestValue = pkg.packageName
-                      .toLowerCase()
-                      .includes('professional')
+                    const isBestValue = pkg.packageName.toLowerCase().includes('professional') && !isEnterprisePackage(pkg.packageName)
+                    const pkgIsEnterprise = isEnterprisePackage(pkg.packageName)
 
                     return (
                       <button
@@ -321,53 +379,50 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                         className="w-full text-left rounded-xl p-3.5 transition-all"
                         style={{
                           background: isSelected
-                            ? hexToRgba(color, 0.18)
+                            ? pkgIsEnterprise ? 'rgba(217,119,6,0.15)' : hexToRgba(color, 0.18)
                             : 'rgba(10, 30, 70, 0.4)',
                           border: isSelected
-                            ? `1.5px solid ${hexToRgba(color, 0.6)}`
+                            ? pkgIsEnterprise ? '1.5px solid rgba(217,119,6,0.5)' : `1.5px solid ${hexToRgba(color, 0.6)}`
                             : '1px solid rgba(255,255,255,0.08)',
                         }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                            {/* Radio dot */}
                             <div
                               className="w-4 h-4 mt-0.5 rounded-full flex-shrink-0 flex items-center justify-center"
                               style={{
                                 border: isSelected
-                                  ? `2px solid ${color}`
+                                  ? pkgIsEnterprise ? '2px solid #d97706' : `2px solid ${color}`
                                   : '2px solid rgba(255,255,255,0.25)',
                               }}
                             >
                               {isSelected && (
                                 <div
                                   className="w-2 h-2 rounded-full"
-                                  style={{ background: color }}
+                                  style={{ background: pkgIsEnterprise ? '#d97706' : color }}
                                 />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-white text-sm font-medium">
-                                  {pkg.packageName}
-                                </span>
+                                <span className="text-white text-sm font-medium">{pkg.packageName}</span>
                                 {isBestValue && (
                                   <span
                                     className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                    style={{
-                                      background: hexToRgba(color, 0.3),
-                                      color,
-                                    }}
+                                    style={{ background: hexToRgba(color, 0.3), color }}
                                   >
                                     Best Value
                                   </span>
                                 )}
+                                {pkgIsEnterprise && (
+                                  <span
+                                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                    style={{ background: 'rgba(217,119,6,0.25)', color: '#fbbf24' }}
+                                  >
+                                    👑 Enterprise
+                                  </span>
+                                )}
                               </div>
-                              {pkg.activeSlots > 0 && (
-                                <p className="text-white/40 text-xs mt-0.5">
-                                  {pkg.activeSlots} Active Slots
-                                </p>
-                              )}
                               {pkg.keyInclusions.length > 0 && (
                                 <p className="text-white/35 text-xs mt-1 line-clamp-2">
                                   {pkg.keyInclusions.slice(0, 3).join(' · ')}
@@ -376,10 +431,14 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-white font-semibold text-sm">
-                              {formatTHB(pkg.price)}
-                            </p>
-                            <p className="text-white/40 text-xs">บ./ปี</p>
+                            {pkgIsEnterprise ? (
+                              <p className="text-amber-400 font-semibold text-sm">ดู Tier ↓</p>
+                            ) : (
+                              <>
+                                <p className="text-white font-semibold text-sm">{formatTHB(pkg.price)}</p>
+                                <p className="text-white/40 text-xs">บ./ปี</p>
+                              </>
+                            )}
                           </div>
                         </div>
                       </button>
@@ -390,101 +449,93 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             ) : (
               <div
                 className="rounded-xl p-4 text-center text-sm"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 <p className="text-white/40">ไม่มีแพ็กเกจสำหรับ Lane นี้</p>
               </div>
+            )}
+
+            {/* Enterprise Tier Toggle */}
+            {sel.packageId && isEnterprise && (
+              <EnterpriseTierToggle
+                tier={currentTier}
+                packageName={sel.packageName}
+                onChange={(tier) => updateSelection(sel.product, { enterpriseTier: tier })}
+              />
             )}
 
             {/* Add-on Checkboxes */}
             {sel.packageId && addons.length > 0 && (
               <div className="space-y-2">
                 <p className="text-white/50 text-xs uppercase tracking-wide">Add-ons</p>
-                <div className="space-y-2">
-                  {addons.map((addon) => {
-                    const isIncludedInPro =
-                      isProfessional && INCLUDED_IN_PRO.includes(addon.packageName)
-                    const isSelected = sel.addonIds.includes(addon.id)
 
-                    return (
-                      <button
-                        key={addon.id}
-                        onClick={() => handleAddonToggle(addon)}
-                        disabled={isIncludedInPro}
-                        className="w-full text-left rounded-xl p-3 transition-all disabled:cursor-not-allowed"
-                        style={{
-                          background: isIncludedInPro
-                            ? 'rgba(255,255,255,0.03)'
-                            : isSelected
-                            ? hexToRgba(color, 0.12)
-                            : 'rgba(10, 30, 70, 0.35)',
-                          border: isIncludedInPro
-                            ? '1px solid rgba(255,255,255,0.06)'
-                            : isSelected
-                            ? `1.5px solid ${hexToRgba(color, 0.45)}`
-                            : '1px solid rgba(255,255,255,0.07)',
-                          opacity: isIncludedInPro ? 0.65 : 1,
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                            {/* Checkbox */}
-                            <div
-                              className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center text-[10px]"
-                              style={{
-                                background: isIncludedInPro
-                                  ? 'rgba(16, 185, 129, 0.2)'
-                                  : isSelected
-                                  ? hexToRgba(color, 0.85)
-                                  : 'rgba(255,255,255,0.08)',
-                                border: isIncludedInPro
-                                  ? '1px solid rgba(16, 185, 129, 0.4)'
-                                  : isSelected
-                                  ? `1px solid ${hexToRgba(color, 0.9)}`
-                                  : '1px solid rgba(255,255,255,0.2)',
-                              }}
-                            >
-                              {(isSelected || isIncludedInPro) && (
-                                <span className="text-white">✓</span>
-                              )}
+                {/* Insite Enterprise: all included message */}
+                {isInsiteEnterprise ? (
+                  <div
+                    className="flex items-center gap-2.5 p-3 rounded-xl"
+                    style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}
+                  >
+                    <span className="text-emerald-400 text-base">✅</span>
+                    <p className="text-emerald-300 text-sm font-medium">ฟีเจอร์ทั้งหมด Included ใน Enterprise</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {addons.map((addon) => {
+                      const isIncludedInPro = isProfessional && INCLUDED_IN_PRO.includes(addon.packageName)
+                      const isIncludedIn360Premium = is360EnterprisePremium && ENTERPRISE_360_PREMIUM_INCLUDED.includes(addon.packageName)
+                      const isAutoIncluded = isIncludedInPro || isIncludedIn360Premium
+                      const isSelected = sel.addonIds.includes(addon.id)
+
+                      return (
+                        <button
+                          key={addon.id}
+                          onClick={() => handleAddonToggle(addon)}
+                          disabled={isAutoIncluded}
+                          className="w-full text-left rounded-xl p-3 transition-all disabled:cursor-not-allowed"
+                          style={{
+                            background: isAutoIncluded
+                              ? 'rgba(255,255,255,0.03)'
+                              : isSelected ? hexToRgba(color, 0.12) : 'rgba(10, 30, 70, 0.35)',
+                            border: isAutoIncluded
+                              ? '1px solid rgba(255,255,255,0.06)'
+                              : isSelected ? `1.5px solid ${hexToRgba(color, 0.45)}` : '1px solid rgba(255,255,255,0.07)',
+                            opacity: isAutoIncluded ? 0.65 : 1,
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                              <div
+                                className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center text-[10px]"
+                                style={{
+                                  background: isAutoIncluded ? 'rgba(16,185,129,0.2)' : isSelected ? hexToRgba(color, 0.85) : 'rgba(255,255,255,0.08)',
+                                  border: isAutoIncluded ? '1px solid rgba(16,185,129,0.4)' : isSelected ? `1px solid ${hexToRgba(color, 0.9)}` : '1px solid rgba(255,255,255,0.2)',
+                                }}
+                              >
+                                {(isSelected || isAutoIncluded) && <span className="text-white">✓</span>}
+                              </div>
+                              <span className="text-sm" style={{ color: isAutoIncluded ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.85)' }}>
+                                {addon.packageName}
+                              </span>
                             </div>
-                            <span
-                              className="text-sm"
-                              style={{
-                                color: isIncludedInPro
-                                  ? 'rgba(255,255,255,0.4)'
-                                  : 'rgba(255,255,255,0.85)',
-                              }}
-                            >
-                              {addon.packageName}
-                            </span>
+                            {isAutoIncluded ? (
+                              <span
+                                className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
+                                style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7' }}
+                              >
+                                ✓ รวมใน{isIncludedIn360Premium ? 'Premium' : 'แพ็กเกจ'}
+                              </span>
+                            ) : (
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-white/70 text-sm font-medium">{formatTHB(addon.price)}</p>
+                                <p className="text-white/35 text-xs">บ./ปี</p>
+                              </div>
+                            )}
                           </div>
-                          {isIncludedInPro ? (
-                            <span
-                              className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
-                              style={{
-                                background: 'rgba(16, 185, 129, 0.15)',
-                                color: '#6ee7b7',
-                              }}
-                            >
-                              ✓ รวมในแพ็กเกจ
-                            </span>
-                          ) : (
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-white/70 text-sm font-medium">
-                                {formatTHB(addon.price)}
-                              </p>
-                              <p className="text-white/35 text-xs">บ./ปี</p>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -518,6 +569,23 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
           </div>
         )
       })}
+
+      {/* Enterprise Combo banner (global — shown outside per-product cards) */}
+      {breakdown.hints
+        .filter((h) => (h.payload as Record<string, unknown>)?.['type'] === 'enterprise_combo')
+        .map((hint, i) => (
+          <div
+            key={i}
+            className="rounded-xl px-4 py-3 flex items-start gap-3"
+            style={{
+              background: 'rgba(217,119,6,0.12)',
+              border: '1px solid rgba(217,119,6,0.35)',
+            }}
+          >
+            <span className="text-base mt-0.5">🎯</span>
+            <p className="text-amber-200 text-sm leading-relaxed">{hint.message}</p>
+          </div>
+        ))}
     </div>
   )
 }

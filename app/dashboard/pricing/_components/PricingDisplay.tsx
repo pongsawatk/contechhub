@@ -25,9 +25,10 @@ const VALID_TABS: Tab[] = ['overview', 'insite', '360', 'kwanjai', 'bundle', 'se
 
 interface Props {
   items: PricingItem[]
+  isAdminOrBU?: boolean
 }
 
-export default function PricingDisplay({ items }: Props) {
+export default function PricingDisplay({ items, isAdminOrBU }: Props) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -57,6 +58,7 @@ export default function PricingDisplay({ items }: Props) {
             productName="Builk Insite"
             productColor={PRODUCT_COLORS['Builk Insite']}
             productLogo={PRODUCT_LOGOS['Builk Insite']}
+            isAdminOrBU={isAdminOrBU}
           />
         )
       case '360':
@@ -66,6 +68,7 @@ export default function PricingDisplay({ items }: Props) {
             productName="Builk 360"
             productColor={PRODUCT_COLORS['Builk 360']}
             productLogo={PRODUCT_LOGOS['Builk 360']}
+            isAdminOrBU={isAdminOrBU}
           />
         )
       case 'kwanjai':
@@ -75,6 +78,7 @@ export default function PricingDisplay({ items }: Props) {
             productName="Kwanjai"
             productColor={PRODUCT_COLORS['Kwanjai']}
             productLogo={PRODUCT_LOGOS['Kwanjai']}
+            isAdminOrBU={isAdminOrBU}
           />
         )
       case 'bundle':

@@ -18,6 +18,7 @@ export interface ProductSelection {
   addonIds: string[]       // Notion page IDs of selected add-ons
   addons: AddonItem[]
   topups: TopupSelection[]  // quantity-based or checkbox top-up items
+  enterpriseTier?: 'base' | 'premium'  // only for Enterprise packages
 }
 
 export interface AddonItem {
@@ -66,7 +67,8 @@ export interface PriceBreakdown {
   discountReason: string
   total: number
   billingCycle: string       // "บาท/ปี" or mixed
-  approvalRequired: boolean  // discount > 10%
+  approvalRequired: boolean  // discount > 10% OR any Enterprise package
+  hasEnterpriseDeal: boolean // at least one Enterprise package selected
   appliedOffers: AppliedOffer[]
   warnings: string[]
   hints: HintItem[]

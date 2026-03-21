@@ -1,4 +1,5 @@
 import type { PriceBreakdown, CalculatorInput } from '@/types/calculator'
+import { isEnterprisePackage, getEnterprisePriceRange } from '@/lib/pricing-engine'
 import SummaryLineItem from './SummaryLineItem'
 
 interface SummaryPanelProps {
@@ -17,6 +18,9 @@ const LANE_COLORS = {
 
 export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
   const laneStyle = LANE_COLORS[input.lane]
+
+  // Collect info about Enterprise selections for display
+  const enterpriseSelections = input.selections.filter((s) => isEnterprisePackage(s.packageName))
 
   return (
     <div
@@ -60,12 +64,58 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
         </div>
       ) : (
         <>
-          {/* Line items */}
+          {/* Line items — with Enterprise tier badges */}
           <div className="space-y-0.5 mb-4">
-            {breakdown.lineItems.map((item, i) => (
-              <SummaryLineItem key={i} item={item} />
-            ))}
+            {breakdown.lineItems.map((item, i) => {
+              // Check if this line item corresponds to an Enterprise package
+              const enterpriseSel = enterpriseSelections.find((s) => s.packageName === item.label)
+              const tierBadge = enterpriseSel
+                ? enterpriseSel.enterpriseTier === 'premium' ? 'Premium' : 'Base'
+                : null
+              return (
+                <div key={i}>
+                  <SummaryLineItem item={item} />
+                  {tierBadge && (
+                    <div className="flex justify-end mt-0.5 mb-1">
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                        style={{
+                          background: tierBadge === 'Premium' ? 'rgba(217,119,6,0.2)' : 'rgba(255,255,255,0.08)',
+                          border: tierBadge === 'Premium' ? '1px solid rgba(217,119,6,0.4)' : '1px solid rgba(255,255,255,0.15)',
+                          color: tierBadge === 'Premium' ? '#fbbf24' : 'rgba(255,255,255,0.5)',
+                        }}
+                      >
+                        {tierBadge} Tier
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
+
+          {/* Enterprise price note */}
+          {breakdown.hasEnterpriseDeal && (
+            <div
+              className="flex items-start gap-2 px-3 py-2 rounded-lg mb-3 text-[11px]"
+              style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)' }}
+            >
+              <span className="mt-0.5">⚡</span>
+              <div>
+                {enterpriseSelections.map((s) => {
+                  const range = getEnterprisePriceRange(s.packageName)
+                  return range ? (
+                    <p key={s.packageName} className="text-amber-300/80">
+                      {s.packageName}: {range} บาท/ปี
+                    </p>
+                  ) : null
+                })}
+                <p className="text-amber-200/50 mt-0.5">
+                  * ราคาสุดท้ายอ้างอิงจาก Base tier — ติดต่อ Sales เพื่อยืนยัน
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Divider */}
           <div className="border-t my-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
@@ -130,6 +180,19 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
             </div>
           )}
 
+          {/* Enterprise Combo hint */}
+          {breakdown.hints.some((h) => (h.payload as Record<string, unknown>)?.['type'] === 'enterprise_combo') && (
+            <div
+              className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs"
+              style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.3)' }}
+            >
+              <span>🎯</span>
+              <span className="text-amber-200 font-medium leading-relaxed">
+                Enterprise Combo: ลด 10% หรือแถม Implementation 2 Man-days — แจ้ง Sales เพื่อยืนยัน
+              </span>
+            </div>
+          )}
+
           {/* Approval Required */}
           {breakdown.approvalRequired && (
             <div
@@ -141,7 +204,9 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
             >
               <span>⚠️</span>
               <span className="text-orange-200 font-medium">
-                ต้องการ Approval จาก Head of BU
+                {breakdown.hasEnterpriseDeal
+                  ? 'Enterprise Deal — ต้องขออนุมัติ Head of BU'
+                  : 'ต้องการ Approval จาก Head of BU'}
               </span>
             </div>
           )}

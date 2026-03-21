@@ -14,12 +14,36 @@ import type { PricingItem } from '@/types/pricing'
 export function itemAppliesTo(item: PricingItem, packageName: string): boolean {
   if (!item.applicablePackages || item.applicablePackages.length === 0) return true
   if (item.applicablePackages.includes('All')) return true
-  // Normalize: "Insite Professional" matches "Professional" in packageName
   return item.applicablePackages.some(
     (ap) =>
       packageName.toLowerCase().includes(ap.toLowerCase().replace('insite ', '').replace('360 ', ''))
       || packageName.toLowerCase().includes(ap.toLowerCase())
   )
+}
+
+/** Returns true when the package name is an Enterprise tier */
+export function isEnterprisePackage(packageName: string): boolean {
+  return packageName.toLowerCase().includes('enterprise')
+}
+
+/** Enterprise price lookup — base/premium tiers are fixed business rules */
+export function getPackagePrice(packageName: string, tier?: 'base' | 'premium'): number | null {
+  const name = packageName.toLowerCase()
+  if (name.includes('insite enterprise')) {
+    return tier === 'premium' ? 500000 : 400000
+  }
+  if (name.includes('360 enterprise')) {
+    return tier === 'premium' ? 380000 : 300000
+  }
+  return null // not Enterprise — use Notion price
+}
+
+/** Human-readable price range string for Enterprise packages */
+export function getEnterprisePriceRange(packageName: string): string {
+  const name = packageName.toLowerCase()
+  if (name.includes('insite enterprise')) return '400,000 – 500,000'
+  if (name.includes('360 enterprise')) return '300,000 – 380,000'
+  return ''
 }
 
 export function calculate(input: CalculatorInput): PriceBreakdown {
@@ -30,16 +54,25 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
 
   let baseTotal = 0
   let addonTotal = 0
+  let hasEnterpriseDeal = false
 
   // --- Step 1: Add package line items ---
   for (const sel of input.selections) {
+    const isEnterprise = isEnterprisePackage(sel.packageName)
+    if (isEnterprise) hasEnterpriseDeal = true
+
+    // Determine effective price (Enterprise overrides Notion price)
+    const effectivePrice = isEnterprise
+      ? (getPackagePrice(sel.packageName, sel.enterpriseTier) ?? sel.packagePrice)
+      : sel.packagePrice
+
     lineItems.push({
       label: sel.packageName,
       sublabel: sel.product,
-      price: sel.packagePrice,
+      price: effectivePrice,
       billing: sel.packageBilling,
     })
-    baseTotal += sel.packagePrice
+    baseTotal += effectivePrice
 
     // Add-on items
     for (const addon of sel.addons) {
@@ -71,17 +104,18 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
 
   // --- Step 2: Business Rules ---
 
-  // Rule A: Super Combo
-  // Triggers when: Insite Professional + 360 Professional both selected
+  // Rule A: Super Combo (Pro+Pro — existing logic, unchanged)
   const hasInsitePro = input.selections.some(
     (s) =>
       s.product === 'Builk Insite' &&
-      s.packageName.toLowerCase().includes('professional')
+      s.packageName.toLowerCase().includes('professional') &&
+      !isEnterprisePackage(s.packageName)
   )
   const has360Pro = input.selections.some(
     (s) =>
       s.product === 'Builk 360' &&
-      s.packageName.toLowerCase().includes('professional')
+      s.packageName.toLowerCase().includes('professional') &&
+      !isEnterprisePackage(s.packageName)
   )
   let superComboDiscount = 0
   if (hasInsitePro && has360Pro) {
@@ -96,6 +130,21 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
       price: -superComboDiscount,
       billing: '',
       isDiscount: true,
+    })
+  }
+
+  // Rule A2: Enterprise Combo (Insite Enterprise + 360 Enterprise)
+  const hasInsiteEnterprise = input.selections.some(
+    (s) => s.product === 'Builk Insite' && isEnterprisePackage(s.packageName)
+  )
+  const has360Enterprise = input.selections.some(
+    (s) => s.product === 'Builk 360' && isEnterprisePackage(s.packageName)
+  )
+  if (hasInsiteEnterprise && has360Enterprise) {
+    hints.push({
+      message: '🎯 Enterprise Combo: ลด 10% on Top หรือแถม Implementation 2 Man-days — เลือก 1 (แจ้ง Sales เพื่อยืนยัน)',
+      actionType: 'add_combo',
+      payload: { type: 'enterprise_combo' },
     })
   }
 
@@ -116,7 +165,6 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
   }
 
   // Rule C: Productivity Pack hint
-  // When Business package selected + A La Carte add-ons >= 4
   for (const sel of input.selections) {
     if (
       sel.product === 'Builk Insite' &&
@@ -135,10 +183,11 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
     }
   }
 
-  // Rule D: Manual discount
+  // Rule D: Manual discount + Approval
   const subtotal = baseTotal + addonTotal - superComboDiscount
   let manualDiscount = 0
-  let approvalRequired = false
+  // Enterprise deals always require approval
+  let approvalRequired = hasEnterpriseDeal
 
   if (input.discountPercent > 0) {
     manualDiscount = subtotal * (input.discountPercent / 100)
@@ -167,6 +216,7 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
     total,
     billingCycle: 'บาท/ปี',
     approvalRequired,
+    hasEnterpriseDeal,
     appliedOffers,
     warnings,
     hints,

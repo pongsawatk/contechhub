@@ -1,5 +1,6 @@
 import type { PricingItem } from '@/types/pricing'
 import { formatNumber, formatBilling, LaneBadge } from '@/lib/pricing-utils'
+import { isEnterprisePackage, getEnterprisePriceRange } from '@/lib/pricing-engine'
 
 interface Props {
   item: PricingItem
@@ -7,13 +8,21 @@ interface Props {
 }
 
 export default function PackageCard({ item, productColor }: Props) {
-  const isBestValue = item.packageName.toLowerCase().includes('professional')
-  const isContactSales = item.price === 0
+  const isBestValue = item.packageName.toLowerCase().includes('professional') && !isEnterprisePackage(item.packageName)
+  const isEnterprise = isEnterprisePackage(item.packageName)
+  const isContactSales = item.price === 0 && !isEnterprise
+  const priceRange = isEnterprise ? getEnterprisePriceRange(item.packageName) : ''
 
   return (
     <div
       className="glass-card relative flex flex-col h-full p-5 hover:-translate-y-1 transition-all duration-200"
-      style={isBestValue ? { borderColor: `${productColor}60` } : {}}
+      style={
+        isBestValue
+          ? { borderColor: `${productColor}60` }
+          : isEnterprise
+          ? { borderColor: 'rgba(251, 191, 36, 0.4)', boxShadow: '0 0 0 1px rgba(251,191,36,0.15)' }
+          : {}
+      }
     >
       {/* Best Value Badge */}
       {isBestValue && (
@@ -23,6 +32,18 @@ export default function PackageCard({ item, productColor }: Props) {
             style={{ background: 'linear-gradient(135deg, #0F6E56, #534AB7)' }}
           >
             ⭐ Best Value
+          </span>
+        </div>
+      )}
+
+      {/* Enterprise Badge */}
+      {isEnterprise && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+          <span
+            className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+            style={{ background: 'linear-gradient(135deg, #92400e, #d97706)', color: '#fef3c7' }}
+          >
+            👑 Enterprise
           </span>
         </div>
       )}
@@ -39,6 +60,15 @@ export default function PackageCard({ item, productColor }: Props) {
       <div className="mb-4">
         {isContactSales ? (
           <p className="text-[#4ade80] text-xl font-semibold">ติดต่อฝ่ายขาย</p>
+        ) : isEnterprise ? (
+          <div>
+            <div className="flex items-baseline gap-1 flex-wrap">
+              <span className="text-white text-xl font-semibold tabular-nums" style={{ color: '#fbbf24' }}>
+                {priceRange}
+              </span>
+            </div>
+            <p className="text-white/40 text-xs mt-0.5">บาท / ปี (Base – Premium)</p>
+          </div>
         ) : (
           <div className="flex items-baseline gap-1 flex-wrap">
             <span className="text-white text-2xl font-semibold tabular-nums">
@@ -51,7 +81,18 @@ export default function PackageCard({ item, productColor }: Props) {
 
       {/* Badges */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {item.activeSlots > 0 && (
+        {isEnterprise ? (
+          <span
+            className="text-xs px-2 py-0.5 rounded-full border"
+            style={{
+              background: 'rgba(251,191,36,0.12)',
+              borderColor: 'rgba(251,191,36,0.35)',
+              color: '#fbbf24',
+            }}
+          >
+            Unlimited* Slots
+          </span>
+        ) : item.activeSlots > 0 ? (
           <span
             className="text-xs px-2 py-0.5 rounded-full border"
             style={{
@@ -62,7 +103,7 @@ export default function PackageCard({ item, productColor }: Props) {
           >
             {item.activeSlots} Active Slots
           </span>
-        )}
+        ) : null}
         {item.lane && <LaneBadge lane={item.lane} />}
         {item.visibility === 'Internal Only' && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-300">
@@ -93,12 +134,17 @@ export default function PackageCard({ item, productColor }: Props) {
         </div>
       )}
 
+      {/* Unlimited slots footnote for Enterprise */}
+      {isEnterprise && (
+        <p className="text-white/30 text-[11px] mb-2">* Soft cap &gt; 30 Active Slots</p>
+      )}
+
       {/* Notes */}
       {item.notes && (
         <div
           className="mt-auto pt-3 border-t border-white/5"
           style={{
-            borderLeft: '2px solid #4ade80',
+            borderLeft: isEnterprise ? '2px solid #d97706' : '2px solid #4ade80',
             paddingLeft: '10px',
             background: 'rgba(255,255,255,0.02)',
             borderRadius: '0 4px 4px 0',

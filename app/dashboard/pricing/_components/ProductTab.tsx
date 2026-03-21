@@ -1,23 +1,29 @@
-import Image from 'next/image'
 import type { PricingItem } from '@/types/pricing'
 import PackageCard from './PackageCard'
 import AddonSection from './AddonSection'
 import TopupSection from './TopupSection'
 import InfrastructureCard from './InfrastructureCard'
+import EnterpriseMatrixCallout from './EnterpriseMatrixCallout'
+import Image from 'next/image'
 
 interface Props {
   items: PricingItem[]
   productName: string
   productColor: string
   productLogo: string
+  isAdminOrBU?: boolean
 }
 
-export default function ProductTab({ items, productName, productColor, productLogo }: Props) {
+export default function ProductTab({ items, productName, productColor, productLogo, isAdminOrBU }: Props) {
   const packages       = items.filter((i) => i.product === productName && i.type === 'Package')
   const addons         = items.filter((i) => i.product === productName && i.type === 'Add-on')
   const bundles        = items.filter((i) => i.product === productName && i.type === 'Bundle')
   const topups         = items.filter((i) => i.product === productName && i.type === 'Top-up')
   const infrastructure = items.filter((i) => i.product === productName && i.type === 'Infrastructure')
+
+  const showEnterpriseMatrix =
+    isAdminOrBU &&
+    (productName === 'Builk Insite' || productName === 'Builk 360')
 
   return (
     <div className="space-y-10">
@@ -61,6 +67,11 @@ export default function ProductTab({ items, productName, productColor, productLo
           </div>
         )}
       </section>
+
+      {/* Enterprise Pricing Matrix (admin/bu_member only) */}
+      {showEnterpriseMatrix && (
+        <EnterpriseMatrixCallout productName={productName} />
+      )}
 
       {/* Section 2: Add-ons & Bundles */}
       {(addons.length > 0 || bundles.length > 0) && (
