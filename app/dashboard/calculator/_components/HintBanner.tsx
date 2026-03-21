@@ -14,7 +14,7 @@ export default function HintBanner({ hint, onAction }: HintBannerProps) {
         border: '1px solid rgba(15, 110, 86, 0.35)',
       }}
     >
-      <span className="text-base mt-0.5 flex-shrink-0">🎁</span>
+      <span className="text-base mt-0.5 flex-shrink-0">Tip</span>
       <div className="flex-1 min-w-0">
         <p className="text-white/85 leading-relaxed">{hint.message}</p>
         {hint.action && onAction && (
@@ -27,7 +27,7 @@ export default function HintBanner({ hint, onAction }: HintBannerProps) {
               color: '#6ee7b7',
             }}
           >
-            {hint.action} →
+            {hint.action} -&gt;
           </button>
         )}
       </div>

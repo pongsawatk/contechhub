@@ -28,6 +28,16 @@ function formatTHB(n: number): string {
   return n.toLocaleString('th-TH')
 }
 
+function getMandatoryItems(allPricingItems: PricingItem[], selection: ProductSelection): PricingItem[] {
+  return allPricingItems.filter(
+    (item) =>
+      item.isMandatoryImplementation &&
+      item.product === selection.product &&
+      !item.packageName.startsWith('[DEPRECATED]') &&
+      itemAppliesTo(item, selection.packageName)
+  )
+}
+
 // ── TopupRow Component ─────────────────────────────────────────────────
 interface TopupRowProps {
   item: PricingItem
@@ -200,7 +210,7 @@ function EnterpriseTierToggle({ tier, selection, onChange }: EnterpriseTierToggl
 
 // ── Main Component ────────────────────────────────────────────────────
 export default function StepPackageConfig({ input, onChange, pricingItems }: StepPackageConfigProps) {
-  const breakdown = calculate(input)
+  const breakdown = calculate(input, pricingItems)
 
   function updateSelection(productId: string, patch: Partial<ProductSelection>) {
     onChange({
@@ -274,6 +284,9 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             item.type === 'Top-up' &&
             itemAppliesTo(item, sel.packageName)
         )
+        const mandatoryItems = getMandatoryItems(pricingItems, sel)
+        const onlineMandatoryItem = mandatoryItems.find((item) => item.implementationMode === 'Online')
+        const onsiteMandatoryItem = mandatoryItems.find((item) => item.implementationMode === 'Onsite')
 
         const isProfessional = sel.packageName.toLowerCase().includes('professional') && !isEnterprise
         // For 360 Enterprise Premium: MS-Teams and Drone Footage are auto-included
@@ -297,6 +310,7 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             packageName: pkg.packageName,
             packagePrice: pkgPrice.base,
             packageBilling: pkg.billing || 'ราย ปี',
+            packageQuantity: 1,
             addonIds: [],
             addons: [],
             topups: [],
@@ -304,6 +318,8 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             enterprisePriceMin: pkg.enterprisePriceMin,
             enterprisePriceMax: pkg.enterprisePriceMax,
             enterpriseAnchorPrice: pkg.enterpriseAnchorPrice,
+            mandatoryMode: 'Online',
+            mandatoryFeeWaived: input.twoYearPrepaid,
           })
         }
 
@@ -376,10 +392,17 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                     const isSelected = sel.packageId === pkg.id
                     const isBestValue = pkg.packageName.toLowerCase().includes('professional') && !isEnterprisePackage(pkg)
                     const pkgIsEnterprise = isEnterprisePackage(pkg)
+                    const showProjectQuantity = isSelected && pkg.quantityEnabled && pkg.billing === 'Per Project'
+                    const packageQuantity = Math.max(1, sel.packageQuantity ?? 1)
+                    const showUpgradeHint =
+                      showProjectQuantity &&
+                      pkg.product === 'Builk 360' &&
+                      pkg.packageName.toLowerCase().includes('single project') &&
+                      packageQuantity >= 3
 
                     return (
-                      <button
-                        key={pkg.id}
+                      <div key={pkg.id} className="rounded-xl overflow-hidden">
+                        <button
                         onClick={() => handlePackageSelect(pkg)}
                         className="w-full text-left rounded-xl p-3.5 transition-all"
                         style={{
@@ -441,12 +464,44 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                             ) : (
                               <>
                                 <p className="text-white font-semibold text-sm">{formatTHB(pkg.price)}</p>
-                                <p className="text-white/40 text-xs">บ./ปี</p>
+                                <p className="text-white/40 text-xs">
+                                  {pkg.billing === 'Per Project' ? 'Per Project' : 'บ./ปี'}
+                                </p>
                               </>
                             )}
                           </div>
                         </div>
-                      </button>
+                        </button>
+                        {showProjectQuantity && (
+                          <div className="px-3.5 pb-3.5 -mt-1">
+                            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/8">
+                              <span className="text-white/50 text-sm">จำนวนโครงการ</span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => updateSelection(sel.product, { packageQuantity: Math.max(1, packageQuantity - 1) })}
+                                  className="w-7 h-7 rounded-lg bg-white/8 border border-white/15 text-white hover:bg-white/15 flex items-center justify-center text-sm transition-all"
+                                >
+                                  −
+                                </button>
+                                <span className="text-white font-semibold w-6 text-center tabular-nums">{packageQuantity}</span>
+                                <button
+                                  onClick={() => updateSelection(sel.product, { packageQuantity: Math.min(9, packageQuantity + 1) })}
+                                  disabled={packageQuantity >= 9}
+                                  className="w-7 h-7 rounded-lg bg-white/8 border border-white/15 text-white hover:bg-white/15 disabled:opacity-30 flex items-center justify-center text-sm"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <span className="text-white/35 text-xs">(สูงสุด 9 โครงการ)</span>
+                            </div>
+                            {showUpgradeHint && (
+                              <p className="text-amber-300/80 text-xs mt-2">
+                                💡 360 Business (100k) คุ้มกว่า: ~33k/โครงการ
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -457,6 +512,14 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 <p className="text-white/40">ไม่มีแพ็กเกจสำหรับ Lane นี้</p>
+              </div>
+            )}
+
+            {sel.packageId && isEnterprise && (
+              <div className="flex justify-end">
+                <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-300">
+                  ✅ Implementation Included
+                </span>
               </div>
             )}
 
@@ -483,6 +546,81 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                   }
                 }}
               />
+            )}
+
+            {sel.packageId && !isEnterprise && onlineMandatoryItem && onsiteMandatoryItem && (
+              <div className="glass-card p-4 border-l-4 border-amber-400/40 mb-1">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-white text-sm font-medium">ค่า Implementation บังคับครั้งแรก</p>
+                    <p className="text-white/40 text-xs">จำเป็นสำหรับลูกค้าใหม่ทุกราย</p>
+                  </div>
+                  {input.twoYearPrepaid && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300">
+                      🎁 Waived
+                    </span>
+                  )}
+                </div>
+
+                {input.twoYearPrepaid ? (
+                  <p className="text-white/35 text-sm line-through">
+                    {formatTHB(
+                      (sel.mandatoryMode ?? 'Online') === 'Onsite'
+                        ? onsiteMandatoryItem.price
+                        : onlineMandatoryItem.price
+                    )} บาท
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex gap-2 mb-3">
+                      {(['Online', 'Onsite'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => updateSelection(sel.product, { mandatoryMode: mode })}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                          style={{
+                            background:
+                              (sel.mandatoryMode ?? 'Online') === mode
+                                ? 'rgba(255,255,255,0.15)'
+                                : 'rgba(255,255,255,0.05)',
+                            border:
+                              (sel.mandatoryMode ?? 'Online') === mode
+                                ? '1px solid rgba(255,255,255,0.25)'
+                                : '1px solid rgba(255,255,255,0.1)',
+                            color:
+                              (sel.mandatoryMode ?? 'Online') === mode
+                                ? 'white'
+                                : 'rgba(255,255,255,0.4)',
+                          }}
+                        >
+                          {mode === 'Online' ? '🖥 Online' : '🏢 Onsite'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-between items-baseline">
+                      <p className="text-white font-semibold tabular-nums">
+                        {formatTHB(
+                          (sel.mandatoryMode ?? 'Online') === 'Onsite'
+                            ? onsiteMandatoryItem.price
+                            : onlineMandatoryItem.price
+                        )} บาท
+                      </p>
+                      <p className="text-white/40 text-xs">One-time</p>
+                    </div>
+
+                    {(sel.mandatoryMode ?? 'Online') === 'Onsite' && (
+                      <p className="text-white/30 text-xs mt-1">* ไม่รวมค่าเดินทางและที่พัก</p>
+                    )}
+
+                    <p className="text-white/30 text-xs mt-1">
+                      {((sel.mandatoryMode ?? 'Online') === 'Onsite'
+                        ? onsiteMandatoryItem
+                        : onlineMandatoryItem).keyInclusions.join(' • ')}
+                    </p>
+                  </>
+                )}
+              </div>
             )}
 
             {/* Add-on Checkboxes */}
@@ -610,3 +748,4 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
     </div>
   )
 }
+

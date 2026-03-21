@@ -13,21 +13,21 @@ const PRODUCTS = [
     id: 'Builk Insite' as const,
     logo: '/logos/iNSITE_Logo.png',
     color: '#378ADD',
-    tagline: 'บริหารโครงการ QC ต้นทุน แบบ Real-time',
+    tagline: 'Real-time project quality and cost control',
     startingPrice: 7500,
   },
   {
     id: 'Builk 360' as const,
     logo: '/logos/builk360_Logo.png',
     color: '#1D9E75',
-    tagline: 'ติดตามไซต์งานด้วยภาพ 360 องศา',
+    tagline: '360 site progress visibility for every project',
     startingPrice: 15000,
   },
   {
     id: 'Kwanjai' as const,
     logo: '/logos/Kwanjai_Logo.png',
     color: '#7F77DD',
-    tagline: 'บริการหลังการขาย Warranty ผ่าน LINE',
+    tagline: 'After-sales warranty support through LINE',
     startingPrice: 0,
   },
 ]
@@ -40,7 +40,7 @@ function hexToRgba(hex: string, alpha: number) {
 }
 
 export default function StepProductSelect({ input, onChange }: StepProductSelectProps) {
-  const selectedIds = new Set(input.selections.map((s) => s.product))
+  const selectedIds = new Set(input.selections.map((selection) => selection.product))
 
   const hasInsite = selectedIds.has('Builk Insite')
   const has360 = selectedIds.has('Builk 360')
@@ -48,35 +48,38 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
 
   function toggle(productId: (typeof PRODUCTS)[number]['id']) {
     if (selectedIds.has(productId)) {
-      // Remove
       onChange({
-        selections: input.selections.filter((s) => s.product !== productId),
+        selections: input.selections.filter((selection) => selection.product !== productId),
       })
-    } else {
-      // Add with empty selection
-      const newSel: ProductSelection = {
-        product: productId,
-        packageId: '',
-        packageName: '',
-        packagePrice: 0,
-        packageBilling: 'ราย ปี',
-        addonIds: [],
-        addons: [],
-        topups: [],
-        enterpriseTier: undefined,
-        enterprisePriceMin: undefined,
-        enterprisePriceMax: undefined,
-        enterpriseAnchorPrice: undefined,
-      }
-      onChange({ selections: [...input.selections, newSel] })
+      return
     }
+
+    const newSelection: ProductSelection = {
+      product: productId,
+      packageId: '',
+      packageName: '',
+      packagePrice: 0,
+      packageBilling: 'Annual',
+      packageQuantity: 1,
+      addonIds: [],
+      addons: [],
+      topups: [],
+      enterpriseTier: undefined,
+      enterprisePriceMin: undefined,
+      enterprisePriceMax: undefined,
+      enterpriseAnchorPrice: undefined,
+      mandatoryMode: 'Online',
+      mandatoryFeeWaived: input.twoYearPrepaid,
+    }
+
+    onChange({ selections: [...input.selections, newSelection] })
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-white font-semibold text-base mb-1">เลือกสินค้า</h3>
-        <p className="text-white/45 text-sm">เลือกผลิตภัณฑ์ที่ต้องการเสนอ (เลือกได้หลายรายการ)</p>
+        <h3 className="text-white font-semibold text-base mb-1">Select Products</h3>
+        <p className="text-white/45 text-sm">Choose one or more products for this quote.</p>
       </div>
 
       <div className="space-y-3">
@@ -98,7 +101,6 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
                 WebkitBackdropFilter: 'blur(16px)',
               }}
             >
-              {/* Checkmark */}
               <div
                 className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center text-xs transition-all"
                 style={
@@ -117,7 +119,6 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
               </div>
 
               <div className="flex items-center gap-3 pr-8">
-                {/* Logo */}
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
                   style={{ background: hexToRgba(product.color, 0.15) }}
@@ -129,34 +130,29 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
                     height={32}
                     className="object-contain"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none'
+                      ;(e.target as HTMLImageElement).style.display = 'none'
                     }}
                   />
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p
-                    className="font-semibold text-sm"
-                    style={{ color: isSelected ? '#fff' : 'rgba(255,255,255,0.75)' }}
-                  >
+                  <p className="font-semibold text-sm" style={{ color: isSelected ? '#fff' : 'rgba(255,255,255,0.75)' }}>
                     {product.id}
                   </p>
                   <p className="text-white/45 text-xs mt-0.5 truncate">{product.tagline}</p>
                 </div>
 
-                {/* Starting price */}
                 <div className="text-right flex-shrink-0">
                   {product.startingPrice > 0 ? (
                     <p className="text-white/50 text-xs">
-                      เริ่มต้น{' '}
+                      Starts at{' '}
                       <span className="text-white/75 font-medium">
                         {product.startingPrice.toLocaleString('th-TH')}
                       </span>{' '}
-                      บ./ปี
+                      THB/year
                     </p>
                   ) : (
-                    <p className="text-white/40 text-xs">ติดต่อทีมขาย</p>
+                    <p className="text-white/40 text-xs">Contact sales</p>
                   )}
                 </div>
               </div>
@@ -165,7 +161,6 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
         })}
       </div>
 
-      {/* Super Combo hint */}
       {showSuperComboHint && (
         <div
           className="flex items-start gap-3 rounded-xl px-4 py-3 text-sm"
@@ -176,9 +171,7 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
         >
           <span className="text-base mt-0.5">🎁</span>
           <p className="text-emerald-200 text-sm">
-            เลือกทั้งสองนี้ สามารถรับส่วนลด{' '}
-            <span className="font-semibold">Super Combo 10%</span>{' '}
-            ได้โดยอัตโนมัติ เมื่อเลือก Professional ทั้งคู่
+            Selecting both products can unlock the <span className="font-semibold">Super Combo 10%</span> offer when both packages are Professional.
           </p>
         </div>
       )}

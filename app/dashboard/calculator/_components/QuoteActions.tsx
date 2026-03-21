@@ -17,6 +17,12 @@ function formatTHB(n: number): string {
   return n.toLocaleString('th-TH')
 }
 
+function formatClipboardLine(price: number, isDiscount?: boolean, isWaived?: boolean, isOneTime?: boolean) {
+  if (isWaived) return `${formatTHB(price)} THB (Waived)`
+  if (isDiscount) return `- ${formatTHB(Math.abs(price))} THB`
+  return `${formatTHB(Math.abs(price))} THB${isOneTime ? ' (one-time)' : '/year'}`
+}
+
 export default function QuoteActions({
   breakdown,
   input,
@@ -35,20 +41,38 @@ export default function QuoteActions({
   })
 
   function buildClipboardText(): string {
+    const annualItems = breakdown.lineItems.filter((item) => !item.isOneTime)
+    const oneTimeItems = breakdown.lineItems.filter((item) => item.isOneTime)
+
     const lines = [
-      'ใบเสนอราคา Contech Hub',
-      `ลูกค้า: ${input.customerName} | Lane: ${input.lane}`,
-      '─'.repeat(34),
-      ...breakdown.lineItems.map((item) => {
-        const prefix = item.isDiscount ? '  ลด ' : '  • '
-        const price = item.price === 0 ? 'ฟรี' : `${formatTHB(Math.abs(item.price))} บาท/ปี`
-        return `${prefix}${item.label}: ${price}`
+      'Contech Hub Quote Summary',
+      `Customer: ${input.customerName} | Lane: ${input.lane}`,
+      '-'.repeat(40),
+      'Annual / Recurring',
+      ...annualItems.map((item) => {
+        const prefix = item.isDiscount ? '  - ' : '  * '
+        return `${prefix}${item.label}: ${formatClipboardLine(item.price, item.isDiscount, item.isWaived, item.isOneTime)}`
       }),
-      '─'.repeat(34),
-      `ราคาสุทธิ: ${formatTHB(breakdown.total)} บาท/ปี`,
-      '* ไม่รวม VAT 7% | มีผล ม.ค. 2026',
-      `สร้างโดย ${currentUser?.displayName ?? 'Sales'} — ${today}`,
+      `Annual total: ${formatTHB(breakdown.annualTotal)} THB/year`,
     ]
+
+    if (oneTimeItems.length > 0) {
+      lines.push(
+        '',
+        'One-time Fees',
+        ...oneTimeItems.map((item) => `  * ${item.label}: ${formatClipboardLine(item.price, item.isDiscount, item.isWaived, item.isOneTime)}`),
+        `One-time total: ${formatTHB(breakdown.oneTimeTotal)} THB`
+      )
+    }
+
+    lines.push(
+      '',
+      `Year 1 total: ${formatTHB(breakdown.firstYearTotal)} THB`,
+      `Year 2+ total: ${formatTHB(breakdown.annualTotal)} THB/year`,
+      '* VAT 7% not included',
+      `Prepared by ${currentUser?.displayName ?? 'Sales'} on ${today}`
+    )
+
     return lines.join('\n')
   }
 
@@ -58,13 +82,12 @@ export default function QuoteActions({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Fallback for older browsers
-      const ta = document.createElement('textarea')
-      ta.value = buildClipboardText()
-      document.body.appendChild(ta)
-      ta.select()
+      const textArea = document.createElement('textarea')
+      textArea.value = buildClipboardText()
+      document.body.appendChild(textArea)
+      textArea.select()
       document.execCommand('copy')
-      document.body.removeChild(ta)
+      document.body.removeChild(textArea)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -82,7 +105,6 @@ export default function QuoteActions({
 
   return (
     <div className="mt-4 space-y-2.5">
-      {/* Save Quote */}
       <button
         onClick={onSave}
         disabled={isDisabled || isSaving}
@@ -102,33 +124,17 @@ export default function QuoteActions({
       >
         {isSaving ? (
           <>
-            <svg
-              className="animate-spin w-4 h-4"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8H4z"
-              />
+            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
-            กำลังบันทึก...
+            Saving quote...
           </>
         ) : (
-          <>💾 บันทึก Quote</>
+          <>Save Quote</>
         )}
       </button>
 
-      {/* Success message */}
       {savedQuoteId && (
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
@@ -137,15 +143,14 @@ export default function QuoteActions({
             border: '1px solid rgba(15, 110, 86, 0.4)',
           }}
         >
-          <span className="text-emerald-400">✓</span>
-          <span className="text-emerald-300">บันทึกแล้ว</span>
+          <span className="text-emerald-400">OK</span>
+          <span className="text-emerald-300">Quote saved successfully</span>
           <span className="text-white/40 ml-auto font-mono truncate max-w-[120px]" title={savedQuoteId}>
-            {savedQuoteId.substring(0, 8)}…
+            {savedQuoteId.substring(0, 8)}...
           </span>
         </div>
       )}
 
-      {/* Copy Summary */}
       <button
         onClick={handleCopy}
         disabled={isDisabled}
@@ -157,10 +162,9 @@ export default function QuoteActions({
           cursor: isDisabled ? 'not-allowed' : 'pointer',
         }}
       >
-        {copied ? '✓ คัดลอกแล้ว' : '📋 Copy Summary'}
+        {copied ? 'Copied summary' : 'Copy Summary'}
       </button>
 
-      {/* Export PDF */}
       <button
         onClick={handleExport}
         disabled={isDisabled}
@@ -172,7 +176,7 @@ export default function QuoteActions({
           cursor: isDisabled ? 'not-allowed' : 'pointer',
         }}
       >
-        📄 Export PDF
+        Export PDF
       </button>
     </div>
   )

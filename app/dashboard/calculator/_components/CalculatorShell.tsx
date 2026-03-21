@@ -20,10 +20,10 @@ interface CalculatorShellProps {
 }
 
 const STEPS = [
-  { id: 1, label: 'ข้อมูลลูกค้า' },
-  { id: 2, label: 'เลือกสินค้า' },
-  { id: 3, label: 'แพ็กเกจ' },
-  { id: 4, label: 'ส่วนลด' },
+  { id: 1, label: 'Customer' },
+  { id: 2, label: 'Products' },
+  { id: 3, label: 'Packages' },
+  { id: 4, label: 'Offers' },
 ] as const
 
 type StepId = (typeof STEPS)[number]['id']
@@ -31,7 +31,7 @@ type StepId = (typeof STEPS)[number]['id']
 function isStepComplete(step: StepId, input: CalculatorInput): boolean {
   if (step === 1) return !!input.customerName
   if (step === 2) return input.selections.length > 0
-  if (step === 3) return input.selections.every((s) => !!s.packageId)
+  if (step === 3) return input.selections.every((selection) => !!selection.packageId)
   return true
 }
 
@@ -51,10 +51,21 @@ export default function CalculatorShell({
   const [isSaving, setIsSaving] = useState(false)
   const [savedQuoteId, setSavedQuoteId] = useState<string | null>(null)
 
-  const breakdown = useMemo(() => calculate(input), [input])
+  const breakdown = useMemo(() => calculate(input, pricingItems), [input, pricingItems])
 
   const onChange = useCallback((patch: Partial<CalculatorInput>) => {
-    setInput((prev) => ({ ...prev, ...patch }))
+    setInput((prev) => {
+      const next = { ...prev, ...patch }
+
+      if (patch.twoYearPrepaid !== undefined) {
+        next.selections = next.selections.map((selection) => ({
+          ...selection,
+          mandatoryFeeWaived: patch.twoYearPrepaid,
+        }))
+      }
+
+      return next
+    })
   }, [])
 
   async function handleSave() {
@@ -68,7 +79,6 @@ export default function CalculatorShell({
       if (res.ok) {
         const data = await res.json()
         setSavedQuoteId(data.quoteId)
-        // Update URL for shareability
         const url = new URL(window.location.href)
         url.searchParams.set('quote', data.quoteId)
         window.history.pushState({}, '', url.toString())
@@ -81,7 +91,6 @@ export default function CalculatorShell({
   }
 
   function canGoToStep(targetStep: StepId): boolean {
-    // Can always go back, can go forward only if previous steps complete
     if (targetStep <= step) return true
     for (let s = 1; s < targetStep; s++) {
       if (!isStepComplete(s as StepId, input)) return false
@@ -96,37 +105,33 @@ export default function CalculatorShell({
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Breadcrumb */}
       <p className="text-muted text-[13px] mb-6">
         <Link href="/dashboard" className="hover:text-white transition-colors">
           Contech Hub
         </Link>
-        <span className="mx-1.5">›</span>
-        <span>คิดราคา</span>
+        <span className="mx-1.5">/</span>
+        <span>Calculator</span>
       </p>
 
       <div className="flex gap-8 items-start">
-        {/* ── Left: Form ── */}
         <div className="flex-1 min-w-0">
-          {/* Page header */}
           <div className="mb-6">
-            <h1 className="text-white font-bold text-2xl">คิดราคา</h1>
+            <h1 className="text-white font-bold text-2xl">Calculator</h1>
             <p className="text-white/45 text-sm mt-1">
-              สร้างใบเสนอราคาสำหรับลูกค้า — คำนวณแบบ Real-time
+              Build a quote with live pricing, one-time fees, and package offers.
             </p>
           </div>
 
-          {/* Step Navigator */}
           <div className="flex items-center gap-2 mb-7 overflow-x-auto scrollbar-hide pb-1">
-            {STEPS.map((s, idx) => {
-              const isActive = step === s.id
-              const isComplete = isStepComplete(s.id, input) && !isActive
-              const isClickable = canGoToStep(s.id)
+            {STEPS.map((stepItem, idx) => {
+              const isActive = step === stepItem.id
+              const isComplete = isStepComplete(stepItem.id, input) && !isActive
+              const isClickable = canGoToStep(stepItem.id)
 
               return (
-                <div key={s.id} className="flex items-center gap-2 flex-shrink-0">
+                <div key={stepItem.id} className="flex items-center gap-2 flex-shrink-0">
                   <button
-                    onClick={() => isClickable && setStep(s.id)}
+                    onClick={() => isClickable && setStep(stepItem.id)}
                     className="flex items-center gap-2 py-2 px-3.5 rounded-full text-sm font-medium transition-all"
                     style={
                       isActive
@@ -160,23 +165,19 @@ export default function CalculatorShell({
                           : 'rgba(255,255,255,0.08)',
                       }}
                     >
-                      {isComplete ? '✓' : s.id}
+                      {isComplete ? '✓' : stepItem.id}
                     </span>
-                    <span>{s.label}</span>
+                    <span>{stepItem.label}</span>
                   </button>
 
                   {idx < STEPS.length - 1 && (
-                    <div
-                      className="w-5 h-px"
-                      style={{ background: 'rgba(255,255,255,0.1)' }}
-                    />
+                    <div className="w-5 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
                   )}
                 </div>
               )
             })}
           </div>
 
-          {/* Step content card */}
           <div
             className="rounded-2xl p-6 mb-5"
             style={{
@@ -186,12 +187,8 @@ export default function CalculatorShell({
               border: '1px solid rgba(100, 220, 255, 0.15)',
             }}
           >
-            {step === 1 && (
-              <StepCustomerInfo input={input} onChange={onChange} />
-            )}
-            {step === 2 && (
-              <StepProductSelect input={input} onChange={onChange} />
-            )}
+            {step === 1 && <StepCustomerInfo input={input} onChange={onChange} />}
+            {step === 2 && <StepProductSelect input={input} onChange={onChange} />}
             {step === 3 && (
               <StepPackageConfig
                 input={input}
@@ -203,12 +200,12 @@ export default function CalculatorShell({
               <StepSpecialOptions
                 input={input}
                 breakdown={breakdown}
+                pricingItems={pricingItems}
                 onChange={onChange}
               />
             )}
           </div>
 
-          {/* Step Nav Buttons */}
           <div className="flex justify-between">
             <button
               onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as StepId) : prev))}
@@ -221,7 +218,7 @@ export default function CalculatorShell({
                 cursor: step === 1 ? 'not-allowed' : 'pointer',
               }}
             >
-              ← ย้อนกลับ
+              ← Back
             </button>
 
             {step < 4 ? (
@@ -240,15 +237,14 @@ export default function CalculatorShell({
                   cursor: canNext ? 'pointer' : 'not-allowed',
                 }}
               >
-                ถัดไป →
+                Next →
               </button>
             ) : (
-              <div /> // placeholder to keep buttons flush
+              <div />
             )}
           </div>
         </div>
 
-        {/* ── Right: Sticky Summary ── */}
         <div className="w-96 flex-shrink-0 sticky top-24 space-y-0">
           <SummaryPanel breakdown={breakdown} input={input} />
           <QuoteActions

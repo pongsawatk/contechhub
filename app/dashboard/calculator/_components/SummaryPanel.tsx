@@ -1,4 +1,4 @@
-import type { PriceBreakdown, CalculatorInput } from '@/types/calculator'
+import type { PriceBreakdown, CalculatorInput, LineItem } from '@/types/calculator'
 import { isEnterprisePackage } from '@/lib/pricing-engine'
 import SummaryLineItem from './SummaryLineItem'
 
@@ -14,7 +14,7 @@ function formatTHB(n: number): string {
 function getEnterprisePriceRange(selection: CalculatorInput['selections'][number]): string {
   if (selection.enterprisePriceMin === null || selection.enterprisePriceMin === undefined) return ''
   if (selection.enterprisePriceMax === null || selection.enterprisePriceMax === undefined) return ''
-  return `${formatTHB(selection.enterprisePriceMin)} – ${formatTHB(selection.enterprisePriceMax)}`
+  return `${formatTHB(selection.enterprisePriceMin)} - ${formatTHB(selection.enterprisePriceMax)}`
 }
 
 const LANE_COLORS = {
@@ -22,11 +22,57 @@ const LANE_COLORS = {
   Corp: { bg: 'rgba(139, 92, 246, 0.2)', border: 'rgba(139, 92, 246, 0.45)', text: '#c4b5fd' },
 }
 
+function renderLineItems(
+  items: LineItem[],
+  enterpriseSelections: CalculatorInput['selections']
+) {
+  return items.map((item, index) => {
+    const enterpriseSel = enterpriseSelections.find((selection) => selection.packageName === item.label)
+    const tierBadge = enterpriseSel
+      ? enterpriseSel.enterpriseTier === 'premium' ? 'Premium' : 'Base'
+      : null
+
+    return (
+      <div key={`${item.label}-${index}`}>
+        {enterpriseSel ? (
+          <div className="flex justify-between items-start py-2">
+            <div className="flex-1 min-w-0 pr-4">
+              <p className="text-white text-sm font-medium leading-snug">{item.label}</p>
+              {item.sublabel && <p className="text-white/45 text-xs truncate mt-0.5">{item.sublabel}</p>}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-amber-300 font-semibold text-sm tabular-nums whitespace-nowrap">
+                {getEnterprisePriceRange(enterpriseSel)}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <SummaryLineItem item={item} />
+        )}
+        {tierBadge && (
+          <div className="flex justify-end mt-0.5 mb-1">
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+              style={{
+                background: tierBadge === 'Premium' ? 'rgba(217,119,6,0.2)' : 'rgba(255,255,255,0.08)',
+                border: tierBadge === 'Premium' ? '1px solid rgba(217,119,6,0.4)' : '1px solid rgba(255,255,255,0.15)',
+                color: tierBadge === 'Premium' ? '#fbbf24' : 'rgba(255,255,255,0.5)',
+              }}
+            >
+              {tierBadge} Tier
+            </span>
+          </div>
+        )}
+      </div>
+    )
+  })
+}
+
 export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
   const laneStyle = LANE_COLORS[input.lane]
-
-  // Collect info about Enterprise selections for display
-  const enterpriseSelections = input.selections.filter((s) => isEnterprisePackage(s))
+  const enterpriseSelections = input.selections.filter((selection) => isEnterprisePackage(selection))
+  const annualItems = breakdown.lineItems.filter((item) => !item.isOneTime)
+  const oneTimeItems = breakdown.lineItems.filter((item) => item.isOneTime)
 
   return (
     <div
@@ -38,15 +84,12 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
         border: '1px solid rgba(100, 220, 255, 0.18)',
       }}
     >
-      {/* Header */}
       <div className="mb-4">
-        <h2 className="text-white font-bold text-lg leading-tight">สรุปราคา</h2>
+        <h2 className="text-white font-bold text-lg leading-tight">Quote Summary</h2>
         {(input.customerName || input.lane) && (
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {input.customerName && (
-              <span className="text-white/60 text-sm truncate max-w-[160px]">
-                {input.customerName}
-              </span>
+              <span className="text-white/60 text-sm truncate max-w-[160px]">{input.customerName}</span>
             )}
             <span
               className="text-xs font-semibold px-2.5 py-0.5 rounded-full flex-shrink-0"
@@ -62,124 +105,103 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
         )}
       </div>
 
-      {/* Empty state */}
       {breakdown.lineItems.length === 0 ? (
         <div className="py-8 text-center">
-          <p className="text-white/25 text-sm">ยังไม่มีรายการ</p>
-          <p className="text-white/20 text-xs mt-1">เลือกสินค้าเพื่อเริ่มคำนวณ</p>
+          <p className="text-white/25 text-sm">No items selected yet</p>
+          <p className="text-white/20 text-xs mt-1">Choose products and packages to start pricing.</p>
         </div>
       ) : (
         <>
-          {/* Line items — with Enterprise tier badges */}
-          <div className="space-y-0.5 mb-4">
-            {breakdown.lineItems.map((item, i) => {
-              // Check if this line item corresponds to an Enterprise package
-              const enterpriseSel = enterpriseSelections.find((s) => s.packageName === item.label)
-              const tierBadge = enterpriseSel
-                ? enterpriseSel.enterpriseTier === 'premium' ? 'Premium' : 'Base'
-                : null
-              return (
-                <div key={i}>
-                  {enterpriseSel && enterpriseSel.packageName === item.label ? (
-                    <div className="flex justify-between items-start py-2">
-                      <div className="flex-1 min-w-0 pr-4">
-                        <p className="text-white text-sm font-medium leading-snug">{item.label}</p>
-                        {item.sublabel && <p className="text-white/45 text-xs truncate mt-0.5">{item.sublabel}</p>}
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-amber-300 font-semibold text-sm tabular-nums whitespace-nowrap">
-                          {getEnterprisePriceRange(enterpriseSel)}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <SummaryLineItem item={item} />
-                  )}
-                  {tierBadge && (
-                    <div className="flex justify-end mt-0.5 mb-1">
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                        style={{
-                          background: tierBadge === 'Premium' ? 'rgba(217,119,6,0.2)' : 'rgba(255,255,255,0.08)',
-                          border: tierBadge === 'Premium' ? '1px solid rgba(217,119,6,0.4)' : '1px solid rgba(255,255,255,0.15)',
-                          color: tierBadge === 'Premium' ? '#fbbf24' : 'rgba(255,255,255,0.5)',
-                        }}
-                      >
-                        {tierBadge} Tier
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center justify-between">
+              <p className="text-white/50 text-xs uppercase tracking-wide">Annual / Recurring</p>
+              <p className="text-white/45 text-xs">{formatTHB(breakdown.annualTotal)} THB/year</p>
+            </div>
+            <div className="space-y-0.5">
+              {renderLineItems(annualItems, enterpriseSelections)}
+            </div>
           </div>
 
-          {/* Enterprise price note */}
+          {oneTimeItems.length > 0 && (
+            <div className="space-y-2 mb-4">
+              <div className="border-t pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-white/50 text-xs uppercase tracking-wide">One-time Fees</p>
+                  <p className="text-white/45 text-xs">{formatTHB(breakdown.oneTimeTotal)} THB</p>
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                {oneTimeItems.map((item, index) => (
+                  <SummaryLineItem key={`${item.label}-${index}`} item={item} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {breakdown.hasEnterpriseDeal && (
             <div
               className="flex items-start gap-2 px-3 py-2 rounded-lg mb-3 text-[11px]"
               style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)' }}
             >
-              <span className="mt-0.5">⚡</span>
+              <span className="mt-0.5">i</span>
               <div>
-                {enterpriseSelections.map((s) => {
-                  const range = getEnterprisePriceRange(s)
+                {enterpriseSelections.map((selection) => {
+                  const range = getEnterprisePriceRange(selection)
                   return range ? (
-                    <p key={s.packageName} className="text-amber-300/80">
-                      {s.packageName}: {range} บาท/ปี
+                    <p key={selection.packageName} className="text-amber-300/80">
+                      {selection.packageName}: {range} THB/year
                     </p>
                   ) : null
                 })}
                 <p className="text-amber-200/50 mt-0.5">
-                  * ราคาสุดท้ายอ้างอิงจาก Base tier — ติดต่อ Sales เพื่อยืนยัน
+                  Final enterprise pricing is still anchored to the selected base tier.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Divider */}
-          <div className="border-t my-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+          <div className="border-t my-3" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
 
-          {/* Subtotal */}
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-white/50 text-sm">รวมก่อนส่วนลด</span>
-            <span className="text-white/70 text-sm font-medium">
-              {formatTHB(breakdown.subtotal)}
-            </span>
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-white font-bold text-base">Net Annual Total</span>
+              <span className="font-bold text-2xl" style={{ color: '#6ee7b7' }}>
+                {formatTHB(breakdown.annualTotal)}
+              </span>
+            </div>
+            <p className="text-white/35 text-xs">
+              Year 1: {formatTHB(breakdown.annualTotal)} + {formatTHB(breakdown.oneTimeTotal)} THB | Year 2+: {formatTHB(breakdown.annualTotal)} THB/year
+            </p>
+            <p className="text-white/30 text-[11px] text-right mt-1">
+              * VAT 7% not included
+            </p>
           </div>
 
-          {/* Discount row */}
-          {breakdown.discountAmount > 0 && (
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm" style={{ color: '#6ee7b7' }}>ส่วนลดรวม</span>
-              <span className="text-sm font-medium" style={{ color: '#6ee7b7' }}>
-                −{formatTHB(breakdown.discountAmount)}
-              </span>
+          {input.twoYearPrepaid && (
+            <div className="glass-card p-3 border border-amber-400/20 bg-amber-400/5 mt-4">
+              <p className="text-amber-300 text-xs font-medium mb-1">🎁 Kickstarter Total Saving</p>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">20% discount (2 years)</span>
+                  <span className="text-amber-300 tabular-nums">-{formatTHB(breakdown.kickstarterDiscountSaving)} THB</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Waive Implementation Fee</span>
+                  <span className="text-amber-300 tabular-nums">-{formatTHB(breakdown.kickstarterMandatorySaving)} THB</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold pt-1 border-t border-amber-400/20">
+                  <span className="text-white/70">Total saved</span>
+                  <span className="text-amber-300 tabular-nums">{formatTHB(breakdown.kickstarterTotalSaving)} THB</span>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Strong divider */}
-          <div className="border-t my-3" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
-
-          {/* Total */}
-          <div className="flex justify-between items-center">
-            <span className="text-white font-bold text-base">ราคาสุทธิ</span>
-            <span className="font-bold text-2xl" style={{ color: '#6ee7b7' }}>
-              {formatTHB(breakdown.total)}
-            </span>
-          </div>
-
-          {/* VAT note */}
-          <p className="text-white/30 text-[11px] text-right mt-1">
-            * ยังไม่รวม VAT 7%
-          </p>
-
-          {/* Applied Offers */}
           {breakdown.appliedOffers.length > 0 && (
             <div className="mt-4 space-y-1.5">
-              {breakdown.appliedOffers.map((offer, i) => (
+              {breakdown.appliedOffers.map((offer, index) => (
                 <div
-                  key={i}
+                  key={index}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
                   style={{
                     background: 'rgba(15, 110, 86, 0.15)',
@@ -190,9 +212,7 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
                   <div className="flex-1 min-w-0">
                     <span className="text-emerald-300 font-semibold">{offer.name}</span>
                     {offer.savings > 0 && (
-                      <span className="text-white/50 ml-1.5">
-                        ประหยัด {formatTHB(offer.savings)} บาท
-                      </span>
+                      <span className="text-white/50 ml-1.5">Saved {formatTHB(offer.savings)} THB</span>
                     )}
                   </div>
                 </div>
@@ -200,20 +220,18 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
             </div>
           )}
 
-          {/* Enterprise Combo hint */}
-          {breakdown.hints.some((h) => (h.payload as Record<string, unknown>)?.['type'] === 'enterprise_combo') && (
+          {breakdown.hints.some((hint) => (hint.payload as Record<string, unknown>)?.['type'] === 'enterprise_combo') && (
             <div
               className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs"
               style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.3)' }}
             >
               <span>🎯</span>
               <span className="text-amber-200 font-medium leading-relaxed">
-                Enterprise Combo: ลด 10% หรือแถม Implementation 2 Man-days — แจ้ง Sales เพื่อยืนยัน
+                Enterprise Combo: sales can confirm either an extra 10% top-up discount or 2 Man-days of implementation support.
               </span>
             </div>
           )}
 
-          {/* Approval Required */}
           {breakdown.approvalRequired && (
             <div
               className="mt-4 flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm"
@@ -222,11 +240,11 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
                 border: '1px solid rgba(234, 88, 12, 0.4)',
               }}
             >
-              <span>⚠️</span>
+              <span>⚠</span>
               <span className="text-orange-200 font-medium">
                 {breakdown.hasEnterpriseDeal
-                  ? 'Enterprise Deal — ต้องขออนุมัติ Head of BU'
-                  : 'ต้องการ Approval จาก Head of BU'}
+                  ? 'Enterprise deals require Head of BU approval.'
+                  : 'This quote requires Head of BU approval.'}
               </span>
             </div>
           )}

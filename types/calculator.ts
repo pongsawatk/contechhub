@@ -3,7 +3,7 @@ export type LaneType = 'Biz' | 'Corp'
 export interface TopupSelection {
   itemId: string
   itemName: string
-  quantity: number        // 1+ for quantity-enabled, always 1 for checkbox
+  quantity: number
   unitPrice: number
   billing: string
   quantityUnit: string
@@ -11,17 +11,20 @@ export interface TopupSelection {
 
 export interface ProductSelection {
   product: 'Builk Insite' | 'Builk 360' | 'Kwanjai'
-  packageId: string        // Notion page ID of selected package
+  packageId: string
   packageName: string
   packagePrice: number
   packageBilling: string
-  addonIds: string[]       // Notion page IDs of selected add-ons
+  packageQuantity?: number
+  addonIds: string[]
   addons: AddonItem[]
-  topups: TopupSelection[]  // quantity-based or checkbox top-up items
-  enterpriseTier?: 'base' | 'premium'  // only for Enterprise packages
+  topups: TopupSelection[]
+  enterpriseTier?: 'base' | 'premium'
   enterprisePriceMin?: number | null
   enterprisePriceMax?: number | null
   enterpriseAnchorPrice?: number | null
+  mandatoryMode?: 'Online' | 'Onsite'
+  mandatoryFeeWaived?: boolean
 }
 
 export interface AddonItem {
@@ -35,9 +38,9 @@ export interface CalculatorInput {
   customerName: string
   lane: LaneType
   selections: ProductSelection[]
-  discountPercent: number      // manual discount 0–100
+  discountPercent: number
   discountReason: string
-  twoYearPrepaid: boolean      // Kickstarter Offer
+  twoYearPrepaid: boolean
 }
 
 export interface LineItem {
@@ -48,6 +51,8 @@ export interface LineItem {
   isDiscount?: boolean
   isFree?: boolean
   isIncluded?: boolean
+  isOneTime?: boolean
+  isWaived?: boolean
 }
 
 export interface AppliedOffer {
@@ -58,7 +63,7 @@ export interface AppliedOffer {
 
 export interface HintItem {
   message: string
-  action?: string            // label for CTA button
+  action?: string
   actionType?: 'upgrade_bundle' | 'add_combo'
   payload?: Record<string, unknown>
 }
@@ -66,13 +71,19 @@ export interface HintItem {
 export interface PriceBreakdown {
   lineItems: LineItem[]
   subtotal: number
+  annualTotal: number
+  oneTimeTotal: number
+  firstYearTotal: number
   discountAmount: number
   discountReason: string
   total: number
-  billingCycle: string       // "บาท/ปี" or mixed
-  approvalRequired: boolean  // discount > 10% OR any Enterprise package
-  hasEnterpriseDeal: boolean // at least one Enterprise package selected
+  billingCycle: string
+  approvalRequired: boolean
+  hasEnterpriseDeal: boolean
   appliedOffers: AppliedOffer[]
   warnings: string[]
   hints: HintItem[]
+  kickstarterDiscountSaving: number
+  kickstarterMandatorySaving: number
+  kickstarterTotalSaving: number
 }

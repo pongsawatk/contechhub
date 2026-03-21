@@ -13,10 +13,10 @@ export interface PricingItem {
   visibility: 'Public' | 'Internal Only' | 'Hidden' | ''
   sortOrder: number
   effectiveDate: string | null
-  applicablePackages: string[]  // from "Applicable Packages" multi_select
-  quantityEnabled: boolean      // from "Quantity Enabled" checkbox
-  quantityUnit: string          // from "Quantity Unit" text
-  maxQuantity: number           // from "Max Quantity" number, 0 = no limit
+  applicablePackages: string[]
+  quantityEnabled: boolean
+  quantityUnit: string
+  maxQuantity: number
   enterprisePriceMin: number | null
   enterprisePriceMax: number | null
   enterpriseAnchorPrice: number | null
@@ -24,7 +24,7 @@ export interface PricingItem {
   enterprisePremiumNote: string
   isInfrastructure: boolean
   showEnterpriseMatrix: boolean
-  serviceCategory?: 'Standard Implementation' | 'Automation & AI' | 'Infrastructure' | null
-  implementationMode?: 'Online' | 'Onsite' | 'N/A' | null
+  serviceCategory?: string | null
+  implementationMode?: string | null
   isMandatoryImplementation: boolean
 }
