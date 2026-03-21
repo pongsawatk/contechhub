@@ -20,46 +20,52 @@ interface CalculatorShellProps {
   initialQuoteId?: string
 }
 
-// Dynamic step configuration based on product type
-type FlowType = 'standard' | 'transformation'
+type StepKey = 'customer' | 'products' | 'packages' | 'services' | 'offers'
 
 interface StepDef {
   id: number
+  key: StepKey
   label: string
 }
 
-function getSteps(flowType: FlowType): StepDef[] {
-  if (flowType === 'transformation') {
-    return [
-      { id: 1, label: 'Customer' },
-      { id: 2, label: 'Products' },
-      { id: 3, label: 'Services' },
-    ]
+function getSteps(input: CalculatorInput): StepDef[] {
+  const hasProducts = input.selections.length > 0
+  const hasServices = input.transformationQuote !== undefined
+
+  const keys: StepKey[] = ['customer', 'products']
+
+  if (hasProducts || (!hasProducts && !hasServices)) {
+    keys.push('packages')
   }
-  return [
-    { id: 1, label: 'Customer' },
-    { id: 2, label: 'Products' },
-    { id: 3, label: 'Packages' },
-    { id: 4, label: 'Offers' },
-  ]
+  if (hasServices) {
+    keys.push('services')
+  }
+  if (hasProducts || (!hasProducts && !hasServices)) {
+    keys.push('offers')
+  }
+
+  return keys.map((key, index) => ({
+    id: index + 1,
+    key,
+    label:
+      key === 'customer'
+        ? 'Customer'
+        : key === 'products'
+        ? 'Products'
+        : key === 'packages'
+        ? 'Packages'
+        : key === 'services'
+        ? 'Services'
+        : 'Offers',
+  }))
 }
 
-function getFlowType(input: CalculatorInput): FlowType {
-  return input.transformationQuote !== undefined ? 'transformation' : 'standard'
-}
-
-function isStepComplete(stepId: number, input: CalculatorInput, flowType: FlowType): boolean {
-  if (stepId === 1) return !!input.customerName
-  if (stepId === 2) {
-    if (flowType === 'transformation') return input.transformationQuote !== undefined
-    return input.selections.length > 0
-  }
-  if (stepId === 3) {
-    if (flowType === 'transformation') {
-      return (input.transformationQuote?.services.length ?? 0) > 0
-    }
-    return input.selections.every((selection) => !!selection.packageId)
-  }
+function isStepComplete(stepKey: StepKey, input: CalculatorInput): boolean {
+  if (stepKey === 'customer') return !!input.customerName
+  if (stepKey === 'products') return input.selections.length > 0 || input.transformationQuote !== undefined
+  if (stepKey === 'packages') return input.selections.every((selection) => !!selection.packageId)
+  if (stepKey === 'services') return (input.transformationQuote?.services.length ?? 0) > 0
+  if (stepKey === 'offers') return true
   return true
 }
 
@@ -79,8 +85,7 @@ export default function CalculatorShell({
   const [isSaving, setIsSaving] = useState(false)
   const [savedQuoteId, setSavedQuoteId] = useState<string | null>(null)
 
-  const flowType = getFlowType(input)
-  const steps = getSteps(flowType)
+  const steps = getSteps(input)
   const maxStep = steps.length
 
   const breakdown = useMemo(() => calculate(input, pricingItems), [input, pricingItems])
@@ -88,13 +93,6 @@ export default function CalculatorShell({
   const onChange = useCallback((patch: Partial<CalculatorInput>) => {
     setInput((prev) => {
       const next = { ...prev, ...patch }
-
-      // When switching flow type, reset step to 2 if currently on step 3+
-      const prevFlow = getFlowType(prev)
-      const nextFlow = getFlowType(next)
-      if (prevFlow !== nextFlow) {
-        // flow switched; caller should also call setStep but we handle it in toggle logic
-      }
 
       if (patch.twoYearPrepaid !== undefined) {
         next.selections = next.selections.map((selection) => ({
@@ -107,24 +105,9 @@ export default function CalculatorShell({
     })
   }, [])
 
-  // When flow type changes (product select step), reset to step 2 if needed
-  const onChangeWithStepReset = useCallback(
-    (patch: Partial<CalculatorInput>) => {
-      const prevFlow = flowType
-      onChange(patch)
-      const nextHasTransformation = patch.transformationQuote !== undefined
-      const nextFlow: FlowType =
-        'transformationQuote' in patch
-          ? nextHasTransformation
-            ? 'transformation'
-            : 'standard'
-          : prevFlow
-      if (nextFlow !== prevFlow && step > 2) {
-        setStep(2)
-      }
-    },
-    [onChange, flowType, step]
-  )
+  // When product selections change dynamically, step state handles component transitions cleanly.
+  // Step product selections remain isolated on Step 2.
+  const onChangeWithStepReset = onChange
 
   async function handleSave() {
     setIsSaving(true)
@@ -151,12 +134,14 @@ export default function CalculatorShell({
   function canGoToStep(targetStep: number): boolean {
     if (targetStep <= step) return true
     for (let s = 1; s < targetStep; s++) {
-      if (!isStepComplete(s, input, flowType)) return false
+      const stepDef = steps.find((x) => x.id === s)
+      if (stepDef && !isStepComplete(stepDef.key, input)) return false
     }
     return true
   }
 
-  const canNext = step < maxStep && isStepComplete(step, input, flowType)
+  const currentStepDef = steps.find((s) => s.id === step)
+  const canNext = step < maxStep && !!currentStepDef && isStepComplete(currentStepDef.key, input)
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -181,7 +166,7 @@ export default function CalculatorShell({
           <div className="flex items-center gap-2 mb-7 overflow-x-auto scrollbar-hide pb-1">
             {steps.map((stepItem, idx) => {
               const isActive = step === stepItem.id
-              const isComplete = isStepComplete(stepItem.id, input, flowType) && !isActive
+              const isComplete = isStepComplete(stepItem.key, input) && !isActive
               const isClickable = canGoToStep(stepItem.id)
 
               return (
@@ -243,25 +228,25 @@ export default function CalculatorShell({
               border: '1px solid rgba(100, 220, 255, 0.15)',
             }}
           >
-            {step === 1 && <StepCustomerInfo input={input} onChange={onChange} />}
-            {step === 2 && (
+            {currentStepDef?.key === 'customer' && <StepCustomerInfo input={input} onChange={onChange} />}
+            {currentStepDef?.key === 'products' && (
               <StepProductSelect input={input} onChange={onChangeWithStepReset} />
             )}
-            {step === 3 && flowType === 'transformation' && (
-              <StepServices
-                input={input}
-                onChange={onChange}
-                pricingItems={pricingItems}
-              />
-            )}
-            {step === 3 && flowType === 'standard' && (
+            {currentStepDef?.key === 'packages' && (
               <StepPackageConfig
                 input={input}
                 pricingItems={pricingItems}
                 onChange={onChange}
               />
             )}
-            {step === 4 && flowType === 'standard' && (
+            {currentStepDef?.key === 'services' && (
+              <StepServices
+                input={input}
+                onChange={onChange}
+                pricingItems={pricingItems}
+              />
+            )}
+            {currentStepDef?.key === 'offers' && (
               <StepSpecialOptions
                 input={input}
                 breakdown={breakdown}

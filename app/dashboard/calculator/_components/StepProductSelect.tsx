@@ -63,11 +63,6 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
   const showSuperComboHint = hasInsite && has360 && !isTransformation
 
   function toggle(productId: (typeof PRODUCTS)[number]['id']) {
-    // Selecting a regular product clears transformation quote
-    if (isTransformation) {
-      onChange({ transformationQuote: undefined })
-    }
-
     if (selectedIds.has(productId)) {
       onChange({
         selections: input.selections.filter((selection) => selection.product !== productId),
@@ -100,9 +95,7 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
     if (isTransformation) {
       onChange({ transformationQuote: undefined })
     } else {
-      // Select transformation — clear regular product selections
       onChange({
-        selections: [],
         transformationQuote: EMPTY_TRANSFORMATION_QUOTE,
       })
     }
@@ -118,25 +111,20 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
       <div className="space-y-3">
         {PRODUCTS.map((product) => {
           const isSelected = selectedIds.has(product.id)
-          const isDisabled = isTransformation
           return (
             <button
               key={product.id}
-              onClick={() => !isDisabled && toggle(product.id)}
+              onClick={() => toggle(product.id)}
               className="w-full text-left rounded-xl p-4 transition-all relative"
               style={{
                 background: isSelected
                   ? hexToRgba(product.color, 0.12)
-                  : isDisabled
-                  ? 'rgba(255,255,255,0.02)'
                   : 'rgba(10, 30, 70, 0.45)',
                 border: isSelected
                   ? `1.5px solid ${hexToRgba(product.color, 0.55)}`
                   : '1px solid rgba(100, 220, 255, 0.12)',
                 backdropFilter: 'blur(16px)',
                 WebkitBackdropFilter: 'blur(16px)',
-                opacity: isDisabled ? 0.45 : 1,
-                cursor: isDisabled ? 'not-allowed' : 'pointer',
               }}
             >
               <div
@@ -213,16 +201,12 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
         style={{
           background: isTransformation
             ? hexToRgba(TRANSFORMATION.color, 0.12)
-            : selectedIds.size > 0
-            ? 'rgba(255,255,255,0.02)'
             : 'rgba(10, 30, 70, 0.45)',
           border: isTransformation
             ? `1.5px solid ${hexToRgba(TRANSFORMATION.color, 0.55)}`
             : '1px solid rgba(167,139,250,0.2)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          opacity: selectedIds.size > 0 && !isTransformation ? 0.5 : 1,
-          cursor: selectedIds.size > 0 && !isTransformation ? 'not-allowed' : 'pointer',
         }}
       >
         <div

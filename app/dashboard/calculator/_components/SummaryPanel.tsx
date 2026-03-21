@@ -79,7 +79,7 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
   const enterpriseSelections = input.selections.filter((selection) => isEnterprisePackage(selection))
   const annualItems = breakdown.lineItems.filter((item) => !item.isOneTime)
   const oneTimeItems = breakdown.lineItems.filter((item) => item.isOneTime)
-  const isTransformation = input.transformationQuote !== undefined
+  const isTransformationOnly = input.transformationQuote !== undefined && input.selections.length === 0
 
   return (
     <div
@@ -113,7 +113,7 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
       </div>
 
       {/* Transformation project header */}
-      {isTransformation && (
+      {isTransformationOnly && (
         <div
           className="mb-4 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
@@ -192,7 +192,7 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
 
           <div className="border-t my-3" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
 
-          {isTransformation ? (
+          {isTransformationOnly ? (
             // Transformation totals: split annual infra vs one-time services
             <div className="space-y-2">
               {breakdown.annualTotal > 0 && (
