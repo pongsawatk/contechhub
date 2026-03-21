@@ -7,27 +7,19 @@ interface Props {
 
 export default function BundleTab({ items }: Props) {
   const specialBundles = items.filter(
-    (i) => i.product === 'Bundle' && i.type === 'Bundle'
+    (item) => item.product === 'Bundle' && item.type === 'Bundle' && !item.isInfrastructure
   )
-  const infrastructure = items.filter(
-    (i) =>
-      i.type === 'Package' &&
-      (i.packageName.toLowerCase().includes('private') ||
-        i.packageName.toLowerCase().includes('database') ||
-        i.packageName.toLowerCase().includes('on-premise') ||
-        i.packageName.toLowerCase().includes('cloud'))
-  )
+  const infrastructure = items.filter((item) => item.isInfrastructure)
 
   const isEmpty = specialBundles.length === 0 && infrastructure.length === 0
 
   return (
     <div className="space-y-10">
-      {/* Section 1: Special Bundles */}
       {specialBundles.length > 0 && (
         <section>
           <h2 className="text-white text-2xl font-semibold mb-1">Bundle Package</h2>
           <p className="text-white/50 text-sm font-light mb-6">
-            โปรโมชันสำหรับลูกค้าที่ใช้หลายผลิตภัณฑ์
+            โปรโมชั่นสำหรับลูกค้าที่ใช้หลายผลิตภัณฑ์
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {specialBundles.map((bundle) => (
@@ -61,8 +53,8 @@ export default function BundleTab({ items }: Props) {
                 </div>
                 {bundle.keyInclusions.length > 0 && (
                   <ul className="space-y-1.5">
-                    {bundle.keyInclusions.map((inc, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-white/70">
+                    {bundle.keyInclusions.map((inc, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-white/70">
                         <span className="text-[#4ade80] text-xs mt-0.5 flex-shrink-0">✓</span>
                         {inc}
                       </li>
@@ -80,7 +72,6 @@ export default function BundleTab({ items }: Props) {
         </section>
       )}
 
-      {/* Section 2: Infrastructure / Private DB */}
       {infrastructure.length > 0 && (
         <section>
           <h2 className="text-white text-2xl font-semibold mb-1">
@@ -121,8 +112,8 @@ export default function BundleTab({ items }: Props) {
                 </div>
                 {item.keyInclusions.length > 0 && (
                   <ul className="space-y-1.5">
-                    {item.keyInclusions.map((inc, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-white/70">
+                    {item.keyInclusions.map((inc, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-white/70">
                         <span className="text-[#4ade80] text-xs mt-0.5 flex-shrink-0">✓</span>
                         {inc}
                       </li>
@@ -138,7 +129,6 @@ export default function BundleTab({ items }: Props) {
         </section>
       )}
 
-      {/* Empty state */}
       {isEmpty && (
         <div className="glass-card p-16 text-center">
           <p className="text-white/40 text-sm">ยังไม่มีข้อมูล Bundle Package จาก Notion</p>

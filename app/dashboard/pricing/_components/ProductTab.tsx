@@ -15,21 +15,16 @@ interface Props {
 }
 
 export default function ProductTab({ items, productName, productColor, productLogo, isAdminOrBU }: Props) {
-  const packages       = items.filter((i) => i.product === productName && i.type === 'Package')
-  const addons         = items.filter((i) => i.product === productName && i.type === 'Add-on')
-  const bundles        = items.filter((i) => i.product === productName && i.type === 'Bundle')
-  const topups         = items.filter((i) => i.product === productName && i.type === 'Top-up')
-  const infrastructure = items.filter((i) => i.product === productName && i.type === 'Infrastructure')
-
-  const showEnterpriseMatrix =
-    isAdminOrBU &&
-    (productName === 'Builk Insite' || productName === 'Builk 360')
+  const packages = items.filter((item) => item.product === productName && item.type === 'Package' && !item.isInfrastructure)
+  const addons = items.filter((item) => item.product === productName && item.type === 'Add-on')
+  const bundles = items.filter((item) => item.product === productName && item.type === 'Bundle')
+  const topups = items.filter((item) => item.product === productName && item.type === 'Top-up')
+  const infrastructure = items.filter((item) => item.product === productName && item.isInfrastructure)
+  const enterpriseMatrixItem = packages.find((item) => item.showEnterpriseMatrix)
 
   return (
     <div className="space-y-10">
-      {/* Section 1: Packages */}
       <section>
-        {/* Product header — larger logo */}
         <div className="flex items-center gap-5 mb-7">
           <div
             className="rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -68,12 +63,13 @@ export default function ProductTab({ items, productName, productColor, productLo
         )}
       </section>
 
-      {/* Enterprise Pricing Matrix (admin/bu_member only) */}
-      {showEnterpriseMatrix && (
-        <EnterpriseMatrixCallout productName={productName} />
+      {enterpriseMatrixItem && (
+        <EnterpriseMatrixCallout
+          item={enterpriseMatrixItem}
+          isVisible={Boolean(isAdminOrBU && enterpriseMatrixItem.showEnterpriseMatrix)}
+        />
       )}
 
-      {/* Section 2: Add-ons & Bundles */}
       {(addons.length > 0 || bundles.length > 0) && (
         <section>
           <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
@@ -83,7 +79,6 @@ export default function ProductTab({ items, productName, productColor, productLo
         </section>
       )}
 
-      {/* Section 3: Top-ups */}
       {topups.length > 0 && (
         <section>
           <h3 className="text-white text-lg font-semibold mb-4">เติมเพิ่มเมื่อต้องการ</h3>
@@ -91,7 +86,6 @@ export default function ProductTab({ items, productName, productColor, productLo
         </section>
       )}
 
-      {/* Section 4: Infrastructure (Enterprise Only) */}
       {infrastructure.length > 0 && (
         <div className="mt-10">
           <div className="flex items-center gap-3 mb-4">

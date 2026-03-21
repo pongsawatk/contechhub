@@ -107,6 +107,13 @@ export async function getPricingPackages(isContechBU = false): Promise<PricingIt
           quantityEnabled: prop(page, "Quantity Enabled")?.checkbox ?? false,
           quantityUnit: prop(page, "Quantity Unit")?.rich_text?.[0]?.plain_text ?? '',
           maxQuantity: prop(page, "Max Quantity")?.number ?? 0,
+          enterprisePriceMin: prop(page, "Enterprise Price Min")?.number ?? null,
+          enterprisePriceMax: prop(page, "Enterprise Price Max")?.number ?? null,
+          enterpriseAnchorPrice: prop(page, "Enterprise Anchor Price")?.number ?? null,
+          enterpriseBaseNote: prop(page, "Enterprise Base Note")?.rich_text?.[0]?.plain_text ?? '',
+          enterprisePremiumNote: prop(page, "Enterprise Premium Note")?.rich_text?.[0]?.plain_text ?? '',
+          isInfrastructure: prop(page, "Is Infrastructure")?.checkbox ?? false,
+          showEnterpriseMatrix: prop(page, "Show Enterprise Matrix")?.checkbox ?? false,
         } as PricingItem
       })
       .filter(Boolean) as PricingItem[]

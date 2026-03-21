@@ -11,10 +11,10 @@ export default function PackageCard({ item, productColor }: Props) {
   const visibleInclusions = 10
   const isBestValue =
     item.packageName.toLowerCase().includes('professional') &&
-    !isEnterprisePackage(item.packageName)
-  const isEnterprise = isEnterprisePackage(item.packageName)
+    !isEnterprisePackage(item)
+  const isEnterprise = isEnterprisePackage(item)
   const isContactSales = item.price === 0 && !isEnterprise
-  const priceRange = isEnterprise ? getEnterprisePriceRange(item.packageName) : ''
+  const priceRange = isEnterprise ? getEnterprisePriceRange(item) : ''
 
   return (
     <div
@@ -119,8 +119,8 @@ export default function PackageCard({ item, productColor }: Props) {
             รายละเอียด
           </p>
           <ul className="space-y-1.5">
-            {item.keyInclusions.slice(0, visibleInclusions).map((inc, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-white/70">
+            {item.keyInclusions.slice(0, visibleInclusions).map((inc, index) => (
+              <li key={index} className="flex items-start gap-2 text-sm text-white/70">
                 <span className="text-[#4ade80] text-xs mt-0.5 flex-shrink-0">✓</span>
                 {inc}
               </li>

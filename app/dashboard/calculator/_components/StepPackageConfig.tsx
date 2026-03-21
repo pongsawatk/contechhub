@@ -143,13 +143,13 @@ function TopupRow({ item, currentQuantity, onChange }: TopupRowProps) {
 // ── Enterprise Tier Toggle ─────────────────────────────────────────────
 interface EnterpriseTierToggleProps {
   tier: 'base' | 'premium'
-  packageName: string
+  selection: ProductSelection
   onChange: (tier: 'base' | 'premium') => void
 }
 
-function EnterpriseTierToggle({ tier, packageName, onChange }: EnterpriseTierToggleProps) {
-  const basePrice = getPackagePrice(packageName, 'base') ?? 0
-  const premiumPrice = getPackagePrice(packageName, 'premium') ?? 0
+function EnterpriseTierToggle({ tier, selection, onChange }: EnterpriseTierToggleProps) {
+  const basePrice = selection.enterprisePriceMin ?? selection.packagePrice
+  const premiumPrice = selection.enterprisePriceMax ?? basePrice
 
   return (
     <div
@@ -191,7 +191,7 @@ function EnterpriseTierToggle({ tier, packageName, onChange }: EnterpriseTierTog
       {tier === 'premium' && (
         <p className="text-amber-200/60 text-[11px]">
           Premium รวม: SLA 4 ชม. · Monthly Executive QBR
-          {packageName.toLowerCase().includes('360') && ' · MS-Teams · Drone Footage'}
+          {selection.packageName.toLowerCase().includes('360') && ' · MS-Teams · Drone Footage'}
         </p>
       )}
     </div>
@@ -247,7 +247,7 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
 
       {input.selections.map((sel) => {
         const color = PRODUCT_COLORS[sel.product] ?? '#38bdf8'
-        const isEnterprise = isEnterprisePackage(sel.packageName)
+        const isEnterprise = isEnterprisePackage(sel)
         const currentTier = sel.enterpriseTier ?? 'base'
 
         // Filter packages for this product & lane
@@ -290,16 +290,20 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
         ]
 
         function handlePackageSelect(pkg: PricingItem) {
-          const pkgIsEnterprise = isEnterprisePackage(pkg.packageName)
+          const pkgIsEnterprise = isEnterprisePackage(pkg)
+          const pkgPrice = getPackagePrice(pkg)
           updateSelection(sel.product, {
             packageId: pkg.id,
             packageName: pkg.packageName,
-            packagePrice: pkg.price,
+            packagePrice: pkgPrice.base,
             packageBilling: pkg.billing || 'ราย ปี',
             addonIds: [],
             addons: [],
             topups: [],
             enterpriseTier: pkgIsEnterprise ? 'base' : undefined,
+            enterprisePriceMin: pkg.enterprisePriceMin,
+            enterprisePriceMax: pkg.enterprisePriceMax,
+            enterpriseAnchorPrice: pkg.enterpriseAnchorPrice,
           })
         }
 
@@ -370,8 +374,8 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
                 <div className="space-y-2">
                   {packages.map((pkg) => {
                     const isSelected = sel.packageId === pkg.id
-                    const isBestValue = pkg.packageName.toLowerCase().includes('professional') && !isEnterprisePackage(pkg.packageName)
-                    const pkgIsEnterprise = isEnterprisePackage(pkg.packageName)
+                    const isBestValue = pkg.packageName.toLowerCase().includes('professional') && !isEnterprisePackage(pkg)
+                    const pkgIsEnterprise = isEnterprisePackage(pkg)
 
                     return (
                       <button
@@ -460,7 +464,7 @@ export default function StepPackageConfig({ input, onChange, pricingItems }: Ste
             {sel.packageId && isEnterprise && (
               <EnterpriseTierToggle
                 tier={currentTier}
-                packageName={sel.packageName}
+                selection={sel}
                 onChange={(tier) => {
                   if (sel.product === 'Builk 360' && tier === 'premium') {
                     // Remove auto-included add-ons from selection when switching to Premium

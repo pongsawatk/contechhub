@@ -7,6 +7,38 @@ import type {
 } from '@/types/calculator'
 import type { PricingItem } from '@/types/pricing'
 
+interface EnterpriseAware {
+  enterprisePriceMin?: number | null
+  enterprisePriceMax?: number | null
+  enterpriseAnchorPrice?: number | null
+}
+
+interface SelectionPriceSource extends EnterpriseAware {
+  packagePrice: number
+}
+
+export interface PackagePrice {
+  base: number
+  premium?: number
+  anchor?: number
+}
+
+function formatTHB(n: number): string {
+  return n.toLocaleString('th-TH')
+}
+
+function getSelectionPackagePrice(item: SelectionPriceSource): PackagePrice {
+  if (item.enterprisePriceMin !== null && item.enterprisePriceMin !== undefined) {
+    return {
+      base: item.enterprisePriceMin,
+      premium: item.enterprisePriceMax ?? undefined,
+      anchor: item.enterpriseAnchorPrice ?? undefined,
+    }
+  }
+
+  return { base: item.packagePrice }
+}
+
 /**
  * Returns true if the given PricingItem applies to the selected package name.
  * If applicablePackages is empty or contains 'All', it applies to everything.
@@ -21,29 +53,26 @@ export function itemAppliesTo(item: PricingItem, packageName: string): boolean {
   )
 }
 
-/** Returns true when the package name is an Enterprise tier */
-export function isEnterprisePackage(packageName: string): boolean {
-  return packageName.toLowerCase().includes('enterprise')
+export function isEnterprisePackage(item: EnterpriseAware | null | undefined): boolean {
+  return item?.enterprisePriceMin !== null && item?.enterprisePriceMin !== undefined
 }
 
-/** Enterprise price lookup — base/premium tiers are fixed business rules */
-export function getPackagePrice(packageName: string, tier?: 'base' | 'premium'): number | null {
-  const name = packageName.toLowerCase()
-  if (name.includes('insite enterprise')) {
-    return tier === 'premium' ? 500000 : 400000
+export function getPackagePrice(item: PricingItem): PackagePrice {
+  if (item.enterprisePriceMin !== null && item.enterprisePriceMin !== undefined) {
+    return {
+      base: item.enterprisePriceMin,
+      premium: item.enterprisePriceMax ?? undefined,
+      anchor: item.enterpriseAnchorPrice ?? undefined,
+    }
   }
-  if (name.includes('360 enterprise')) {
-    return tier === 'premium' ? 380000 : 300000
-  }
-  return null // not Enterprise — use Notion price
+
+  return { base: item.price }
 }
 
-/** Human-readable price range string for Enterprise packages */
-export function getEnterprisePriceRange(packageName: string): string {
-  const name = packageName.toLowerCase()
-  if (name.includes('insite enterprise')) return '400,000 – 500,000'
-  if (name.includes('360 enterprise')) return '300,000 – 380,000'
-  return ''
+export function getEnterprisePriceRange(item: PricingItem): string {
+  const price = getPackagePrice(item)
+  if (price.premium === undefined) return ''
+  return `${formatTHB(price.base)} – ${formatTHB(price.premium)}`
 }
 
 export function calculate(input: CalculatorInput): PriceBreakdown {
@@ -56,15 +85,14 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
   let addonTotal = 0
   let hasEnterpriseDeal = false
 
-  // --- Step 1: Add package line items ---
   for (const sel of input.selections) {
-    const isEnterprise = isEnterprisePackage(sel.packageName)
+    const isEnterprise = isEnterprisePackage(sel)
     if (isEnterprise) hasEnterpriseDeal = true
 
-    // Determine effective price (Enterprise overrides Notion price)
-    const effectivePrice = isEnterprise
-      ? (getPackagePrice(sel.packageName, sel.enterpriseTier) ?? sel.packagePrice)
-      : sel.packagePrice
+    const packagePrice = getSelectionPackagePrice(sel)
+    const effectivePrice = isEnterprise && sel.enterpriseTier === 'premium' && packagePrice.premium !== undefined
+      ? packagePrice.premium
+      : packagePrice.base
 
     lineItems.push({
       label: sel.packageName,
@@ -74,26 +102,24 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
     })
     baseTotal += effectivePrice
 
-    // Add-on items
     for (const addon of sel.addons) {
       lineItems.push({
         label: addon.name,
-        sublabel: `Add-on — ${sel.product}`,
+        sublabel: `Add-on – ${sel.product}`,
         price: addon.price,
         billing: addon.billing,
       })
       addonTotal += addon.price
     }
 
-    // --- Top-ups ---
     for (const topup of (sel.topups ?? [])) {
       if (topup.quantity > 0) {
         const unitLabel = topup.quantityUnit
           ? `${topup.quantity} ${topup.quantityUnit}`
-          : `×${topup.quantity}`
+          : `x${topup.quantity}`
         lineItems.push({
           label: `${topup.itemName} (${unitLabel})`,
-          sublabel: `Top-up — ${sel.product}`,
+          sublabel: `Top-up – ${sel.product}`,
           price: topup.unitPrice * topup.quantity,
           billing: topup.billing,
         })
@@ -102,20 +128,17 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
     }
   }
 
-  // --- Step 2: Business Rules ---
-
-  // Rule A: Super Combo (Pro+Pro — existing logic, unchanged)
   const hasInsitePro = input.selections.some(
     (s) =>
       s.product === 'Builk Insite' &&
       s.packageName.toLowerCase().includes('professional') &&
-      !isEnterprisePackage(s.packageName)
+      !isEnterprisePackage(s)
   )
   const has360Pro = input.selections.some(
     (s) =>
       s.product === 'Builk 360' &&
       s.packageName.toLowerCase().includes('professional') &&
-      !isEnterprisePackage(s.packageName)
+      !isEnterprisePackage(s)
   )
   let superComboDiscount = 0
   if (hasInsitePro && has360Pro) {
@@ -133,22 +156,20 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
     })
   }
 
-  // Rule A2: Enterprise Combo (Insite Enterprise + 360 Enterprise)
   const hasInsiteEnterprise = input.selections.some(
-    (s) => s.product === 'Builk Insite' && isEnterprisePackage(s.packageName)
+    (s) => s.product === 'Builk Insite' && isEnterprisePackage(s)
   )
   const has360Enterprise = input.selections.some(
-    (s) => s.product === 'Builk 360' && isEnterprisePackage(s.packageName)
+    (s) => s.product === 'Builk 360' && isEnterprisePackage(s)
   )
   if (hasInsiteEnterprise && has360Enterprise) {
     hints.push({
-      message: '🎯 Enterprise Combo: ลด 10% on Top หรือแถม Implementation 2 Man-days — เลือก 1 (แจ้ง Sales เพื่อยืนยัน)',
+      message: 'Enterprise Combo: ลด 10% on Top หรือแถม Implementation 2 Man-days — เลือก 1 (แจ้ง Sales เพื่อยืนยัน)',
       actionType: 'add_combo',
       payload: { type: 'enterprise_combo' },
     })
   }
 
-  // Rule B: Kickstarter Offer (2-year prepaid)
   if (input.twoYearPrepaid) {
     appliedOffers.push({
       name: 'Kickstarter Offer',
@@ -164,14 +185,13 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
     })
   }
 
-  // Rule C: Productivity Pack hint
   for (const sel of input.selections) {
     if (
       sel.product === 'Builk Insite' &&
       sel.packageName.toLowerCase().includes('business') &&
       sel.addons.length >= 4
     ) {
-      const alaCarteTotal = sel.addons.reduce((s, a) => s + a.price, 0)
+      const alaCarteTotal = sel.addons.reduce((sum, addon) => sum + addon.price, 0)
       if (alaCarteTotal > 45000) {
         hints.push({
           message: `ซื้อ Productivity Pack (45,000 บ./ปี) คุ้มกว่า ${alaCarteTotal.toLocaleString('th-TH')} บ. ประหยัด ${(alaCarteTotal - 45000).toLocaleString('th-TH')} บาท`,
@@ -183,10 +203,8 @@ export function calculate(input: CalculatorInput): PriceBreakdown {
     }
   }
 
-  // Rule D: Manual discount + Approval
   const subtotal = baseTotal + addonTotal - superComboDiscount
   let manualDiscount = 0
-  // Enterprise deals always require approval
   let approvalRequired = hasEnterpriseDeal
 
   if (input.discountPercent > 0) {

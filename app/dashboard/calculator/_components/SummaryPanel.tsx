@@ -1,5 +1,5 @@
 import type { PriceBreakdown, CalculatorInput } from '@/types/calculator'
-import { isEnterprisePackage, getEnterprisePriceRange } from '@/lib/pricing-engine'
+import { isEnterprisePackage } from '@/lib/pricing-engine'
 import SummaryLineItem from './SummaryLineItem'
 
 interface SummaryPanelProps {
@@ -11,6 +11,12 @@ function formatTHB(n: number): string {
   return n.toLocaleString('th-TH')
 }
 
+function getEnterprisePriceRange(selection: CalculatorInput['selections'][number]): string {
+  if (selection.enterprisePriceMin === null || selection.enterprisePriceMin === undefined) return ''
+  if (selection.enterprisePriceMax === null || selection.enterprisePriceMax === undefined) return ''
+  return `${formatTHB(selection.enterprisePriceMin)} – ${formatTHB(selection.enterprisePriceMax)}`
+}
+
 const LANE_COLORS = {
   Biz: { bg: 'rgba(59, 130, 246, 0.2)', border: 'rgba(59, 130, 246, 0.45)', text: '#93c5fd' },
   Corp: { bg: 'rgba(139, 92, 246, 0.2)', border: 'rgba(139, 92, 246, 0.45)', text: '#c4b5fd' },
@@ -20,7 +26,7 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
   const laneStyle = LANE_COLORS[input.lane]
 
   // Collect info about Enterprise selections for display
-  const enterpriseSelections = input.selections.filter((s) => isEnterprisePackage(s.packageName))
+  const enterpriseSelections = input.selections.filter((s) => isEnterprisePackage(s))
 
   return (
     <div
@@ -82,7 +88,7 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-amber-300 font-semibold text-sm tabular-nums whitespace-nowrap">
-                          {getEnterprisePriceRange(item.label)}
+                          {getEnterprisePriceRange(enterpriseSel)}
                         </p>
                       </div>
                     </div>
@@ -117,7 +123,7 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
               <span className="mt-0.5">⚡</span>
               <div>
                 {enterpriseSelections.map((s) => {
-                  const range = getEnterprisePriceRange(s.packageName)
+                  const range = getEnterprisePriceRange(s)
                   return range ? (
                     <p key={s.packageName} className="text-amber-300/80">
                       {s.packageName}: {range} บาท/ปี

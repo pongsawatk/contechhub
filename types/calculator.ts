@@ -19,6 +19,9 @@ export interface ProductSelection {
   addons: AddonItem[]
   topups: TopupSelection[]  // quantity-based or checkbox top-up items
   enterpriseTier?: 'base' | 'premium'  // only for Enterprise packages
+  enterprisePriceMin?: number | null
+  enterprisePriceMax?: number | null
+  enterpriseAnchorPrice?: number | null
 }
 
 export interface AddonItem {

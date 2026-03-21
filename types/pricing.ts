@@ -17,4 +17,11 @@ export interface PricingItem {
   quantityEnabled: boolean      // from "Quantity Enabled" checkbox
   quantityUnit: string          // from "Quantity Unit" text
   maxQuantity: number           // from "Max Quantity" number, 0 = no limit
+  enterprisePriceMin: number | null
+  enterprisePriceMax: number | null
+  enterpriseAnchorPrice: number | null
+  enterpriseBaseNote: string
+  enterprisePremiumNote: string
+  isInfrastructure: boolean
+  showEnterpriseMatrix: boolean
 }

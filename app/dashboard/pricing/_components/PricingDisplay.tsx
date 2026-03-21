@@ -3,104 +3,100 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import type { PricingItem } from '@/types/pricing'
-import { PRODUCT_COLORS, PRODUCT_LOGOS } from '@/lib/pricing-utils'
+import { getProductConfig, getProductTabId } from '@/lib/pricing-utils'
 import OverviewTab from './OverviewTab'
 import ProductTab from './ProductTab'
 import BundleTab from './BundleTab'
 import ServicesTab from './ServicesTab'
 import PricingFooter from './PricingFooter'
 
-type Tab = 'overview' | 'insite' | '360' | 'kwanjai' | 'bundle' | 'services'
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'overview', label: 'ภาพรวม' },
-  { id: 'insite', label: 'Builk Insite' },
-  { id: '360', label: 'Builk 360' },
-  { id: 'kwanjai', label: 'Kwanjai' },
-  { id: 'bundle', label: 'Bundle Package' },
-  { id: 'services', label: 'Professional Services' },
-]
-
-const VALID_TABS: Tab[] = ['overview', 'insite', '360', 'kwanjai', 'bundle', 'services']
-
 interface Props {
   items: PricingItem[]
   isAdminOrBU?: boolean
+}
+
+interface PricingTab {
+  id: string
+  label: string
+  productName?: string
 }
 
 export default function PricingDisplay({ items, isAdminOrBU }: Props) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const tabParam = searchParams.get('tab') ?? 'overview'
-  const activeTab: Tab = VALID_TABS.includes(tabParam as Tab)
-    ? (tabParam as Tab)
-    : 'overview'
+  const productNames = Array.from(
+    new Set(
+      items
+        .filter((item) => item.type === 'Package' && item.product !== 'Bundle' && !item.isInfrastructure)
+        .map((item) => item.product)
+    )
+  )
+
+  const tabs: PricingTab[] = [
+    { id: 'overview', label: 'ภาพรวม' },
+    ...productNames.map((productName) => ({
+      id: getProductTabId(productName),
+      label: productName,
+      productName,
+    })),
+    { id: 'bundle', label: 'Bundle Package' },
+    { id: 'services', label: 'Professional Services' },
+  ]
+
+  const activeTabParam = searchParams.get('tab') ?? 'overview'
+  const validTabIds = new Set(tabs.map((tab) => tab.id))
+  const activeTab = validTabIds.has(activeTabParam) ? activeTabParam : 'overview'
 
   function setActiveTab(id: string) {
     router.replace(`?tab=${id}`, { scroll: false })
   }
 
   const latestDate = items
-    .map((i) => i.effectiveDate)
+    .map((item) => item.effectiveDate)
     .filter(Boolean)
     .sort()
     .reverse()[0] ?? null
 
+  const activeProductTab = tabs.find((tab) => tab.id === activeTab)?.productName
+
   const renderContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return <OverviewTab items={items} onTabChange={setActiveTab} />
-      case 'insite':
-        return (
-          <ProductTab
-            items={items.filter((i) => i.product === 'Builk Insite')}
-            productName="Builk Insite"
-            productColor={PRODUCT_COLORS['Builk Insite']}
-            productLogo={PRODUCT_LOGOS['Builk Insite']}
-            isAdminOrBU={isAdminOrBU}
-          />
-        )
-      case '360':
-        return (
-          <ProductTab
-            items={items.filter((i) => i.product === 'Builk 360')}
-            productName="Builk 360"
-            productColor={PRODUCT_COLORS['Builk 360']}
-            productLogo={PRODUCT_LOGOS['Builk 360']}
-            isAdminOrBU={isAdminOrBU}
-          />
-        )
-      case 'kwanjai':
-        return (
-          <ProductTab
-            items={items.filter((i) => i.product === 'Kwanjai')}
-            productName="Kwanjai"
-            productColor={PRODUCT_COLORS['Kwanjai']}
-            productLogo={PRODUCT_LOGOS['Kwanjai']}
-            isAdminOrBU={isAdminOrBU}
-          />
-        )
-      case 'bundle':
-        return <BundleTab items={items} />
-      case 'services':
-        return <ServicesTab items={items} />
-      default:
-        return <OverviewTab items={items} onTabChange={setActiveTab} />
+    if (activeTab === 'overview') {
+      return <OverviewTab items={items} onTabChange={setActiveTab} />
     }
+
+    if (activeTab === 'bundle') {
+      return <BundleTab items={items} />
+    }
+
+    if (activeTab === 'services') {
+      return <ServicesTab items={items} />
+    }
+
+    if (activeProductTab) {
+      const config = getProductConfig(activeProductTab)
+      return (
+        <ProductTab
+          items={items.filter((item) => item.product === activeProductTab)}
+          productName={activeProductTab}
+          productColor={config.color}
+          productLogo={config.logo}
+          isAdminOrBU={isAdminOrBU}
+        />
+      )
+    }
+
+    return <OverviewTab items={items} onTabChange={setActiveTab} />
   }
 
   return (
     <div>
-      {/* ── Page Header ──────────────────────────────────────────────── */}
       <div className="mb-8">
         <p className="text-white/40 text-sm font-light mb-3">
-          Contech Hub  ›  ราคาและแพ็กเกจ
+          Contech Hub  •  ราคาและแพ็กเกจ
         </p>
         <div className="flex items-center justify-between flex-wrap gap-4">
-          {/* Left: landscape logo + title */}
           <div className="flex items-center gap-5">
-            {/* Contech landscape logo — white bg */}
             <div
               className="flex items-center justify-center rounded-xl px-3 py-2 flex-shrink-0"
               style={{
@@ -118,7 +114,6 @@ export default function PricingDisplay({ items, isAdminOrBU }: Props) {
                 priority
               />
             </div>
-            {/* Title */}
             <div>
               <h1 className="text-3xl font-semibold text-white leading-tight">
                 ราคาและแพ็กเกจ
@@ -128,14 +123,12 @@ export default function PricingDisplay({ items, isAdminOrBU }: Props) {
               </p>
             </div>
           </div>
-          {/* Right: disclaimer */}
           <p className="text-white/[0.35] text-xs italic self-end">
-            ราคาเพื่อการนำเสนอ อาจเปลี่ยนตาม scope จริง · มีผล ม.ค. 2026
+            ราคาเพื่อการนำเสนอ อาจเปลี่ยนตาม scope จริง • มีผล ม.ค. 2026
           </p>
         </div>
       </div>
 
-      {/* ── Sticky Tab Bar ───────────────────────────────────────────── */}
       <div
         className="sticky top-[64px] z-40 -mx-4 sm:-mx-6 mb-8"
         style={{
@@ -146,7 +139,7 @@ export default function PricingDisplay({ items, isAdminOrBU }: Props) {
         }}
       >
         <div className="flex gap-1 px-4 sm:px-6 py-2 overflow-x-auto scrollbar-hide">
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -162,10 +155,8 @@ export default function PricingDisplay({ items, isAdminOrBU }: Props) {
         </div>
       </div>
 
-      {/* ── Tab Content ──────────────────────────────────────────────── */}
       {renderContent()}
 
-      {/* ── Footer ───────────────────────────────────────────────────── */}
       <PricingFooter effectiveDateNote={latestDate ?? undefined} />
     </div>
   )
