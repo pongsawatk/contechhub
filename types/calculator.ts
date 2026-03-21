@@ -34,6 +34,21 @@ export interface AddonItem {
   billing: string
 }
 
+export interface ServiceSelection {
+  itemId: string
+  itemName: string
+  quantity: number       // man-days; always 1 for lump-sum/infrastructure
+  unitPrice: number
+  billing: string        // 'Man-day' | 'Lump Sum' | 'Per Year'
+  taskNote: string       // per-item description (can be empty)
+}
+
+export interface TransformationQuote {
+  projectName: string
+  engagementModel: 'quick-win' | 'project' | 'program' | ''
+  services: ServiceSelection[]
+}
+
 export interface CalculatorInput {
   customerName: string
   lane: LaneType
@@ -41,6 +56,7 @@ export interface CalculatorInput {
   discountPercent: number
   discountReason: string
   twoYearPrepaid: boolean
+  transformationQuote?: TransformationQuote
 }
 
 export interface LineItem {
@@ -86,4 +102,6 @@ export interface PriceBreakdown {
   kickstarterDiscountSaving: number
   kickstarterMandatorySaving: number
   kickstarterTotalSaving: number
+  projectName?: string
+  engagementModel?: string
 }

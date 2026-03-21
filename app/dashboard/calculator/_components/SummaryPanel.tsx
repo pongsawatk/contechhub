@@ -68,11 +68,18 @@ function renderLineItems(
   })
 }
 
+const ENGAGEMENT_LABEL: Record<string, string> = {
+  'quick-win': '⚡ Quick Win (1–5 วัน)',
+  project: '📋 Project-based (1–3 เดือน)',
+  program: '🚀 Transformation (3 เดือน+)',
+}
+
 export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
   const laneStyle = LANE_COLORS[input.lane]
   const enterpriseSelections = input.selections.filter((selection) => isEnterprisePackage(selection))
   const annualItems = breakdown.lineItems.filter((item) => !item.isOneTime)
   const oneTimeItems = breakdown.lineItems.filter((item) => item.isOneTime)
+  const isTransformation = input.transformationQuote !== undefined
 
   return (
     <div
@@ -104,6 +111,29 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
           </div>
         )}
       </div>
+
+      {/* Transformation project header */}
+      {isTransformation && (
+        <div
+          className="mb-4 pb-4"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          <p className="text-white/40 text-xs mb-1">ชื่อโปรเจค</p>
+          <p className="text-white font-semibold">{breakdown.projectName || '—'}</p>
+          {breakdown.engagementModel && ENGAGEMENT_LABEL[breakdown.engagementModel] && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full mt-1 inline-block"
+              style={{
+                background: 'rgba(167,139,250,0.15)',
+                border: '1px solid rgba(167,139,250,0.25)',
+                color: '#c4b5fd',
+              }}
+            >
+              {ENGAGEMENT_LABEL[breakdown.engagementModel]}
+            </span>
+          )}
+        </div>
+      )}
 
       {breakdown.lineItems.length === 0 ? (
         <div className="py-8 text-center">
@@ -162,20 +192,54 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
 
           <div className="border-t my-3" style={{ borderColor: 'rgba(255,255,255,0.15)' }} />
 
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-white font-bold text-base">Net Annual Total</span>
-              <span className="font-bold text-2xl" style={{ color: '#6ee7b7' }}>
-                {formatTHB(breakdown.annualTotal)}
-              </span>
+          {isTransformation ? (
+            // Transformation totals: split annual infra vs one-time services
+            <div className="space-y-2">
+              {breakdown.annualTotal > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-white/60 text-sm">ค่า Infrastructure (ต่อปี)</span>
+                  <span className="text-white font-semibold tabular-nums">
+                    {formatTHB(breakdown.annualTotal)} THB
+                  </span>
+                </div>
+              )}
+              {breakdown.oneTimeTotal > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-white/60 text-sm">ค่าบริการ (One-time)</span>
+                  <span className="text-white font-semibold tabular-nums">
+                    {formatTHB(breakdown.oneTimeTotal)} THB
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <span className="text-white font-bold text-base">รวมทั้งหมด</span>
+                <span className="font-bold text-2xl" style={{ color: '#c4b5fd' }}>
+                  {formatTHB(breakdown.annualTotal + breakdown.oneTimeTotal)}
+                </span>
+              </div>
+              {breakdown.annualTotal > 0 && breakdown.oneTimeTotal > 0 && (
+                <p className="text-white/35 text-xs">
+                  ปีแรก: {formatTHB(breakdown.annualTotal)} + {formatTHB(breakdown.oneTimeTotal)} THB | ปีถัดไป: {formatTHB(breakdown.annualTotal)} THB/ปี
+                </p>
+              )}
+              <p className="text-white/30 text-[11px] text-right">* VAT 7% not included</p>
             </div>
-            <p className="text-white/35 text-xs">
-              Year 1: {formatTHB(breakdown.annualTotal)} + {formatTHB(breakdown.oneTimeTotal)} THB | Year 2+: {formatTHB(breakdown.annualTotal)} THB/year
-            </p>
-            <p className="text-white/30 text-[11px] text-right mt-1">
-              * VAT 7% not included
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-white font-bold text-base">Net Annual Total</span>
+                <span className="font-bold text-2xl" style={{ color: '#6ee7b7' }}>
+                  {formatTHB(breakdown.annualTotal)}
+                </span>
+              </div>
+              <p className="text-white/35 text-xs">
+                Year 1: {formatTHB(breakdown.annualTotal)} + {formatTHB(breakdown.oneTimeTotal)} THB | Year 2+: {formatTHB(breakdown.annualTotal)} THB/year
+              </p>
+              <p className="text-white/30 text-[11px] text-right mt-1">
+                * VAT 7% not included
+              </p>
+            </div>
+          )}
 
           {input.twoYearPrepaid && (
             <div className="glass-card p-3 border border-amber-400/20 bg-amber-400/5 mt-4">

@@ -8,6 +8,7 @@ import { calculate } from '@/lib/pricing-engine'
 import StepCustomerInfo from './StepCustomerInfo'
 import StepProductSelect from './StepProductSelect'
 import StepPackageConfig from './StepPackageConfig'
+import StepServices from './StepServices'
 import StepSpecialOptions from './StepSpecialOptions'
 import SummaryPanel from './SummaryPanel'
 import QuoteActions from './QuoteActions'
@@ -19,19 +20,46 @@ interface CalculatorShellProps {
   initialQuoteId?: string
 }
 
-const STEPS = [
-  { id: 1, label: 'Customer' },
-  { id: 2, label: 'Products' },
-  { id: 3, label: 'Packages' },
-  { id: 4, label: 'Offers' },
-] as const
+// Dynamic step configuration based on product type
+type FlowType = 'standard' | 'transformation'
 
-type StepId = (typeof STEPS)[number]['id']
+interface StepDef {
+  id: number
+  label: string
+}
 
-function isStepComplete(step: StepId, input: CalculatorInput): boolean {
-  if (step === 1) return !!input.customerName
-  if (step === 2) return input.selections.length > 0
-  if (step === 3) return input.selections.every((selection) => !!selection.packageId)
+function getSteps(flowType: FlowType): StepDef[] {
+  if (flowType === 'transformation') {
+    return [
+      { id: 1, label: 'Customer' },
+      { id: 2, label: 'Products' },
+      { id: 3, label: 'Services' },
+    ]
+  }
+  return [
+    { id: 1, label: 'Customer' },
+    { id: 2, label: 'Products' },
+    { id: 3, label: 'Packages' },
+    { id: 4, label: 'Offers' },
+  ]
+}
+
+function getFlowType(input: CalculatorInput): FlowType {
+  return input.transformationQuote !== undefined ? 'transformation' : 'standard'
+}
+
+function isStepComplete(stepId: number, input: CalculatorInput, flowType: FlowType): boolean {
+  if (stepId === 1) return !!input.customerName
+  if (stepId === 2) {
+    if (flowType === 'transformation') return input.transformationQuote !== undefined
+    return input.selections.length > 0
+  }
+  if (stepId === 3) {
+    if (flowType === 'transformation') {
+      return (input.transformationQuote?.services.length ?? 0) > 0
+    }
+    return input.selections.every((selection) => !!selection.packageId)
+  }
   return true
 }
 
@@ -39,7 +67,7 @@ export default function CalculatorShell({
   pricingItems,
   currentUser,
 }: CalculatorShellProps) {
-  const [step, setStep] = useState<StepId>(1)
+  const [step, setStep] = useState(1)
   const [input, setInput] = useState<CalculatorInput>({
     customerName: '',
     lane: 'Biz',
@@ -51,11 +79,22 @@ export default function CalculatorShell({
   const [isSaving, setIsSaving] = useState(false)
   const [savedQuoteId, setSavedQuoteId] = useState<string | null>(null)
 
+  const flowType = getFlowType(input)
+  const steps = getSteps(flowType)
+  const maxStep = steps.length
+
   const breakdown = useMemo(() => calculate(input, pricingItems), [input, pricingItems])
 
   const onChange = useCallback((patch: Partial<CalculatorInput>) => {
     setInput((prev) => {
       const next = { ...prev, ...patch }
+
+      // When switching flow type, reset step to 2 if currently on step 3+
+      const prevFlow = getFlowType(prev)
+      const nextFlow = getFlowType(next)
+      if (prevFlow !== nextFlow) {
+        // flow switched; caller should also call setStep but we handle it in toggle logic
+      }
 
       if (patch.twoYearPrepaid !== undefined) {
         next.selections = next.selections.map((selection) => ({
@@ -67,6 +106,25 @@ export default function CalculatorShell({
       return next
     })
   }, [])
+
+  // When flow type changes (product select step), reset to step 2 if needed
+  const onChangeWithStepReset = useCallback(
+    (patch: Partial<CalculatorInput>) => {
+      const prevFlow = flowType
+      onChange(patch)
+      const nextHasTransformation = patch.transformationQuote !== undefined
+      const nextFlow: FlowType =
+        'transformationQuote' in patch
+          ? nextHasTransformation
+            ? 'transformation'
+            : 'standard'
+          : prevFlow
+      if (nextFlow !== prevFlow && step > 2) {
+        setStep(2)
+      }
+    },
+    [onChange, flowType, step]
+  )
 
   async function handleSave() {
     setIsSaving(true)
@@ -90,18 +148,15 @@ export default function CalculatorShell({
     }
   }
 
-  function canGoToStep(targetStep: StepId): boolean {
+  function canGoToStep(targetStep: number): boolean {
     if (targetStep <= step) return true
     for (let s = 1; s < targetStep; s++) {
-      if (!isStepComplete(s as StepId, input)) return false
+      if (!isStepComplete(s, input, flowType)) return false
     }
     return true
   }
 
-  const canNext =
-    step < 4 &&
-    isStepComplete(step, input) &&
-    (step !== 2 || input.selections.length > 0)
+  const canNext = step < maxStep && isStepComplete(step, input, flowType)
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -122,10 +177,11 @@ export default function CalculatorShell({
             </p>
           </div>
 
+          {/* Step progress bar */}
           <div className="flex items-center gap-2 mb-7 overflow-x-auto scrollbar-hide pb-1">
-            {STEPS.map((stepItem, idx) => {
+            {steps.map((stepItem, idx) => {
               const isActive = step === stepItem.id
-              const isComplete = isStepComplete(stepItem.id, input) && !isActive
+              const isComplete = isStepComplete(stepItem.id, input, flowType) && !isActive
               const isClickable = canGoToStep(stepItem.id)
 
               return (
@@ -170,7 +226,7 @@ export default function CalculatorShell({
                     <span>{stepItem.label}</span>
                   </button>
 
-                  {idx < STEPS.length - 1 && (
+                  {idx < steps.length - 1 && (
                     <div className="w-5 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
                   )}
                 </div>
@@ -188,15 +244,24 @@ export default function CalculatorShell({
             }}
           >
             {step === 1 && <StepCustomerInfo input={input} onChange={onChange} />}
-            {step === 2 && <StepProductSelect input={input} onChange={onChange} />}
-            {step === 3 && (
+            {step === 2 && (
+              <StepProductSelect input={input} onChange={onChangeWithStepReset} />
+            )}
+            {step === 3 && flowType === 'transformation' && (
+              <StepServices
+                input={input}
+                onChange={onChange}
+                pricingItems={pricingItems}
+              />
+            )}
+            {step === 3 && flowType === 'standard' && (
               <StepPackageConfig
                 input={input}
                 pricingItems={pricingItems}
                 onChange={onChange}
               />
             )}
-            {step === 4 && (
+            {step === 4 && flowType === 'standard' && (
               <StepSpecialOptions
                 input={input}
                 breakdown={breakdown}
@@ -208,7 +273,7 @@ export default function CalculatorShell({
 
           <div className="flex justify-between">
             <button
-              onClick={() => setStep((prev) => (prev > 1 ? ((prev - 1) as StepId) : prev))}
+              onClick={() => setStep((prev) => (prev > 1 ? prev - 1 : prev))}
               disabled={step === 1}
               className="px-5 py-2.5 text-sm rounded-xl transition-all"
               style={{
@@ -221,9 +286,9 @@ export default function CalculatorShell({
               ← Back
             </button>
 
-            {step < 4 ? (
+            {step < maxStep ? (
               <button
-                onClick={() => canNext && setStep((prev) => (prev + 1) as StepId)}
+                onClick={() => canNext && setStep((prev) => prev + 1)}
                 disabled={!canNext}
                 className="px-6 py-2.5 text-sm font-semibold rounded-xl transition-all"
                 style={{

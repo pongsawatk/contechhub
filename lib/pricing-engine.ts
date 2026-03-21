@@ -287,6 +287,43 @@ export function calculate(input: CalculatorInput, allItems: PricingItem[] = []):
   const annualTotal = recurringAfterOffers - manualDiscount
   const firstYearTotal = annualTotal + oneTimeTotal
 
+  // --- Transformation Service line items ---
+  let projectName: string | undefined
+  let engagementModel: string | undefined
+  const tq = input.transformationQuote
+  if (tq && tq.services.length > 0) {
+    projectName = tq.projectName || undefined
+    engagementModel = tq.engagementModel || undefined
+    for (const svc of tq.services) {
+      const totalPrice = svc.unitPrice * svc.quantity
+      lineItems.push({
+        label:
+          svc.quantity > 1 ? `${svc.itemName} × ${svc.quantity} Man-days` : svc.itemName,
+        sublabel: svc.taskNote || undefined,
+        price: totalPrice,
+        billing: svc.billing,
+        isOneTime: svc.billing !== 'Per Year',
+      })
+      if (svc.billing === 'Per Year') {
+        // already captured above (not in recurringAfterOffers since it's separate)
+      } else {
+        // one-time services go directly into the summary as isOneTime items
+      }
+    }
+
+    // Approval if transformation total > 100,000 THB
+    const tqOneTime = tq.services
+      .filter((svc) => svc.billing !== 'Per Year')
+      .reduce((sum, svc) => sum + svc.unitPrice * svc.quantity, 0)
+    const tqAnnual = tq.services
+      .filter((svc) => svc.billing === 'Per Year')
+      .reduce((sum, svc) => sum + svc.unitPrice * svc.quantity, 0)
+    if (tqOneTime + tqAnnual > 100000) {
+      approvalRequired = true
+      warnings.push('Transformation quote exceeds 100,000 THB and requires Head of BU approval.')
+    }
+  }
+
   return {
     lineItems,
     subtotal: recurringSubtotal,
@@ -305,5 +342,7 @@ export function calculate(input: CalculatorInput, allItems: PricingItem[] = []):
     kickstarterDiscountSaving,
     kickstarterMandatorySaving,
     kickstarterTotalSaving: kickstarterDiscountSaving + kickstarterMandatorySaving,
+    projectName,
+    engagementModel,
   }
 }
