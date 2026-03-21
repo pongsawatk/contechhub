@@ -35,18 +35,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return false;
       }
     },
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, account, trigger }) {
+      // First sign-in — store token and expiry
+      if (account) {
+        token.accessToken = account.access_token
+        token.accessTokenExpires = account.expires_at
+          ? account.expires_at * 1000  // convert to ms
+          : Date.now() + 3600 * 1000   // default 1 hour
+      }
+
       // Attach profile on first sign in only
       if (trigger === "signIn" && user?.email) {
         const profile = await getUserProfile(user.email)
         token.userProfile = profile ?? undefined
       }
+
+      // Return token if still valid (with 60s buffer)
+      if (token.accessTokenExpires && Date.now() < (token.accessTokenExpires as number) - 60000) {
+        return token
+      }
+
+      // Token expired — return existing, Graph API will gracefully fail
       return token
     },
     async session({ session, token }) {
       if (token.userProfile) {
         session.user.profile = token.userProfile as UserProfile
       }
+      session.accessToken = token.accessToken as string | undefined
       return session
     },
   },
