@@ -102,6 +102,12 @@ export interface PriceBreakdown {
   kickstarterDiscountSaving: number
   kickstarterMandatorySaving: number
   kickstarterTotalSaving: number
+  kickstarter?: {
+    twoYearSubtotal: number
+    discountAmount: number
+    twoYearTotal: number
+    effectiveAnnualRate: number
+  }
   projectName?: string
   engagementModel?: string
 }

@@ -38,6 +38,7 @@ const TRANSFORMATION = {
   color: '#a78bfa',
   name: 'Transformation Service',
   description: 'ออกแบบและพัฒนาระบบดิจิทัล — ไม่จำเป็นต้องซื้อ Product ก่อน',
+  isStandalone: true,
 }
 
 function hexToRgba(hex: string, alpha: number) {

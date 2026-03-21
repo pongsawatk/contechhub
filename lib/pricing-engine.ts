@@ -223,14 +223,27 @@ export function calculate(input: CalculatorInput, allItems: PricingItem[] = []):
     })
   }
 
-  const kickstarterDiscountSaving = input.twoYearPrepaid
-    ? (recurringSubtotal - superComboDiscount) * 0.2
-    : 0
+  const annualBaseForKickstarter = recurringSubtotal - superComboDiscount
+  const kickstarterDiscountSaving = input.twoYearPrepaid ? annualBaseForKickstarter * 0.2 : 0
+  
   const kickstarterMandatorySaving = lineItems
     .filter((item) => item.isOneTime && item.isWaived)
     .reduce((sum, item) => sum + item.price, 0)
 
+  let kickstarterStats: PriceBreakdown['kickstarter'] = undefined
+
   if (input.twoYearPrepaid) {
+    const twoYearSubtotal = annualBaseForKickstarter * 2
+    const discountAmount = twoYearSubtotal * 0.2
+    const twoYearTotal = twoYearSubtotal - discountAmount
+    
+    kickstarterStats = {
+      twoYearSubtotal,
+      discountAmount,
+      twoYearTotal,
+      effectiveAnnualRate: twoYearTotal / 2,
+    }
+
     appliedOffers.push({
       name: 'Kickstarter Offer',
       description: '20% off 2-year prepaid plans, plus waived implementation fee and training benefits.',
@@ -342,6 +355,7 @@ export function calculate(input: CalculatorInput, allItems: PricingItem[] = []):
     kickstarterDiscountSaving,
     kickstarterMandatorySaving,
     kickstarterTotalSaving: kickstarterDiscountSaving + kickstarterMandatorySaving,
+    kickstarter: kickstarterStats,
     projectName,
     engagementModel,
   }

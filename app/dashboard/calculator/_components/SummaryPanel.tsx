@@ -227,13 +227,18 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
           ) : (
             <div className="space-y-1">
               <div className="flex justify-between items-center">
-                <span className="text-white font-bold text-base">Net Annual Total</span>
+                <span className="text-white font-bold text-base">
+                  {input.twoYearPrepaid && breakdown.kickstarter ? 'Net (ราคา 2 ปี Prepaid)' : 'Net Annual Total'}
+                </span>
                 <span className="font-bold text-2xl" style={{ color: '#6ee7b7' }}>
-                  {formatTHB(breakdown.annualTotal)}
+                  {formatTHB(input.twoYearPrepaid && breakdown.kickstarter ? breakdown.kickstarter.twoYearTotal : breakdown.annualTotal)}
                 </span>
               </div>
               <p className="text-white/35 text-xs">
-                Year 1: {formatTHB(breakdown.annualTotal)} + {formatTHB(breakdown.oneTimeTotal)} THB | Year 2+: {formatTHB(breakdown.annualTotal)} THB/year
+                {input.twoYearPrepaid && breakdown.kickstarter
+                  ? `ชำระครั้งเดียว ${formatTHB(breakdown.kickstarter.twoYearTotal)} THB — เทียบเท่า ${formatTHB(breakdown.kickstarter.effectiveAnnualRate)} THB/ปี`
+                  : `Year 1: ${formatTHB(breakdown.annualTotal)} + ${formatTHB(breakdown.oneTimeTotal)} THB | Year 2+: ${formatTHB(breakdown.annualTotal)} THB/year`
+                }
               </p>
               <p className="text-white/30 text-[11px] text-right mt-1">
                 * VAT 7% not included
@@ -241,23 +246,48 @@ export default function SummaryPanel({ breakdown, input }: SummaryPanelProps) {
             </div>
           )}
 
-          {input.twoYearPrepaid && (
-            <div className="glass-card p-3 border border-amber-400/20 bg-amber-400/5 mt-4">
-              <p className="text-amber-300 text-xs font-medium mb-1">🎁 Kickstarter Total Saving</p>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-white/50">20% discount (2 years)</span>
-                  <span className="text-amber-300 tabular-nums">-{formatTHB(breakdown.kickstarterDiscountSaving)} THB</span>
+          {input.twoYearPrepaid && breakdown.kickstarter && (
+            <div className="glass-card p-4 border border-amber-400/20 bg-amber-400/5 mt-4 rounded-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm">🚀</span>
+                <p className="text-white/70 text-sm font-medium">Kickstarter — ราคา 2 ปี Prepaid</p>
+              </div>
+
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-white/50">ราคาปีที่ 1 + 2 (ปกติ)</span>
+                  <span className="text-white/70 tabular-nums">
+                    {formatTHB(breakdown.kickstarter.twoYearSubtotal)} THB
+                  </span>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-white/50">Waive Implementation Fee</span>
+
+                <div className="flex justify-between">
+                  <span className="text-amber-300/80">ส่วนลด Kickstarter 20%</span>
+                  <span className="text-amber-300 tabular-nums font-medium">
+                    -{formatTHB(breakdown.kickstarter.discountAmount)} THB
+                  </span>
+                </div>
+
+                <div className="border-t pt-1.5 mt-1.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+
+                <div className="flex justify-between font-semibold">
+                  <span className="text-white">รวม 2 ปี (ชำระครั้งเดียว)</span>
+                  <span className="text-[#4ade80] tabular-nums text-base">
+                    {formatTHB(breakdown.kickstarter.twoYearTotal)} THB
+                  </span>
+                </div>
+
+                <p className="text-white/35 text-xs text-right mt-1">
+                  เทียบเท่า {formatTHB(breakdown.kickstarter.effectiveAnnualRate)} THB/ปี (ประหยัด {formatTHB(breakdown.kickstarter.discountAmount)} THB)
+                </p>
+              </div>
+
+              {breakdown.kickstarterMandatorySaving > 0 && (
+                <div className="flex justify-between text-xs mt-3 pt-3" style={{ borderTop: '1px solid rgba(251, 191, 36, 0.2)' }}>
+                  <span className="text-white/50">🎁 Waive Implementation Fee</span>
                   <span className="text-amber-300 tabular-nums">-{formatTHB(breakdown.kickstarterMandatorySaving)} THB</span>
                 </div>
-                <div className="flex justify-between text-sm font-semibold pt-1 border-t border-amber-400/20">
-                  <span className="text-white/70">Total saved</span>
-                  <span className="text-amber-300 tabular-nums">{formatTHB(breakdown.kickstarterTotalSaving)} THB</span>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
