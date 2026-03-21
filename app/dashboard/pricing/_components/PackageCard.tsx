@@ -8,7 +8,10 @@ interface Props {
 }
 
 export default function PackageCard({ item, productColor }: Props) {
-  const isBestValue = item.packageName.toLowerCase().includes('professional') && !isEnterprisePackage(item.packageName)
+  const visibleInclusions = 10
+  const isBestValue =
+    item.packageName.toLowerCase().includes('professional') &&
+    !isEnterprisePackage(item.packageName)
   const isEnterprise = isEnterprisePackage(item.packageName)
   const isContactSales = item.price === 0 && !isEnterprise
   const priceRange = isEnterprise ? getEnterprisePriceRange(item.packageName) : ''
@@ -20,11 +23,13 @@ export default function PackageCard({ item, productColor }: Props) {
         isBestValue
           ? { borderColor: `${productColor}60` }
           : isEnterprise
-          ? { borderColor: 'rgba(251, 191, 36, 0.4)', boxShadow: '0 0 0 1px rgba(251,191,36,0.15)' }
-          : {}
+            ? {
+                borderColor: 'rgba(251, 191, 36, 0.4)',
+                boxShadow: '0 0 0 1px rgba(251,191,36,0.15)',
+              }
+            : {}
       }
     >
-      {/* Best Value Badge */}
       {isBestValue && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
           <span
@@ -36,7 +41,6 @@ export default function PackageCard({ item, productColor }: Props) {
         </div>
       )}
 
-      {/* Enterprise Badge */}
       {isEnterprise && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
           <span
@@ -48,7 +52,6 @@ export default function PackageCard({ item, productColor }: Props) {
         </div>
       )}
 
-      {/* Name + Target Profile */}
       <div className="mb-4 pt-2">
         <h4 className="text-white font-semibold text-base">{item.packageName}</h4>
         {item.targetProfile && (
@@ -56,7 +59,6 @@ export default function PackageCard({ item, productColor }: Props) {
         )}
       </div>
 
-      {/* Price */}
       <div className="mb-4">
         {isContactSales ? (
           <p className="text-[#4ade80] text-xl font-semibold">ติดต่อฝ่ายขาย</p>
@@ -79,7 +81,6 @@ export default function PackageCard({ item, productColor }: Props) {
         )}
       </div>
 
-      {/* Badges */}
       <div className="flex flex-wrap gap-2 mb-4">
         {isEnterprise ? (
           <span
@@ -112,34 +113,31 @@ export default function PackageCard({ item, productColor }: Props) {
         )}
       </div>
 
-      {/* Key Inclusions */}
       {item.keyInclusions.length > 0 && (
         <div className="flex-1 mb-4">
           <p className="text-white/40 text-xs font-light mb-2 uppercase tracking-wider">
             รายละเอียด
           </p>
           <ul className="space-y-1.5">
-            {item.keyInclusions.slice(0, 6).map((inc, i) => (
+            {item.keyInclusions.slice(0, visibleInclusions).map((inc, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-white/70">
                 <span className="text-[#4ade80] text-xs mt-0.5 flex-shrink-0">✓</span>
                 {inc}
               </li>
             ))}
-            {item.keyInclusions.length > 6 && (
+            {item.keyInclusions.length > visibleInclusions && (
               <li className="text-white/[0.35] text-xs">
-                ...และอีก {item.keyInclusions.length - 6} รายการ
+                ...และอีก {item.keyInclusions.length - visibleInclusions} รายการ
               </li>
             )}
           </ul>
         </div>
       )}
 
-      {/* Unlimited slots footnote for Enterprise */}
       {isEnterprise && (
         <p className="text-white/30 text-[11px] mb-2">* Soft cap &gt; 30 Active Slots</p>
       )}
 
-      {/* Notes */}
       {item.notes && (
         <div
           className="mt-auto pt-3 border-t border-white/5"
