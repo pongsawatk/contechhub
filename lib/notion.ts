@@ -84,9 +84,11 @@ export async function getPricingPackages(isContechBU = false): Promise<PricingIt
       .map((page: any) => {
         const visibility = selectProp(prop(page, "Visibility"))
         if (visibility === "Internal Only" && !isContechBU) return null
+        const packageName = titleText(prop(page, "Package Name"))
+        if (packageName.startsWith("[DEPRECATED]")) return null
         return {
           id: page.id as string,
-          packageName: titleText(prop(page, "Package Name")),
+          packageName,
           product: selectProp(prop(page, "Product")) as PricingItem["product"],
           type: selectProp(prop(page, "Type")) as PricingItem["type"],
           price: numberProp(prop(page, "Price (THB)")),
@@ -114,6 +116,9 @@ export async function getPricingPackages(isContechBU = false): Promise<PricingIt
           enterprisePremiumNote: prop(page, "Enterprise Premium Note")?.rich_text?.[0]?.plain_text ?? '',
           isInfrastructure: prop(page, "Is Infrastructure")?.checkbox ?? false,
           showEnterpriseMatrix: prop(page, "Show Enterprise Matrix")?.checkbox ?? false,
+          serviceCategory: prop(page, "Service Category")?.select?.name ?? null,
+          implementationMode: prop(page, "Implementation Mode")?.select?.name ?? null,
+          isMandatoryImplementation: prop(page, "Is Mandatory Implementation")?.checkbox ?? false,
         } as PricingItem
       })
       .filter(Boolean) as PricingItem[]

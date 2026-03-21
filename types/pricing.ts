@@ -2,7 +2,7 @@ export interface PricingItem {
   id: string
   packageName: string
   product: 'Builk Insite' | 'Builk 360' | 'Kwanjai' | 'Bundle'
-  type: 'Package' | 'Add-on' | 'Top-up' | 'Bundle' | 'Service' | 'Infrastructure'
+  type: 'Package' | 'Add-on' | 'Top-up' | 'Bundle' | 'Service' | 'Transformation Service' | 'Infrastructure'
   price: number
   billing: string
   activeSlots: number
@@ -24,4 +24,7 @@ export interface PricingItem {
   enterprisePremiumNote: string
   isInfrastructure: boolean
   showEnterpriseMatrix: boolean
+  serviceCategory?: 'Standard Implementation' | 'Automation & AI' | 'Infrastructure' | null
+  implementationMode?: 'Online' | 'Onsite' | 'N/A' | null
+  isMandatoryImplementation: boolean
 }
