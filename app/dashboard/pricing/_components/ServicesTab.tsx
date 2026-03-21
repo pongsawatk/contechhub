@@ -111,7 +111,7 @@ function formatTablePrice(item: PricingItem): string {
 }
 
 function getItemNote(item: PricingItem): string {
-  return [item.notes, item.targetProfile, item.keyInclusions.join(' • ')].filter(Boolean).join(' | ')
+  return item.notes ?? ''
 }
 
 export default function ServicesTab({ items }: Props) {
