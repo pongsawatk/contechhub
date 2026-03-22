@@ -7,6 +7,7 @@ import type { AccountableProfile } from "@/types/kpi"
 interface Props {
   profile: AccountableProfile | null
   size?: "sm" | "md"
+  shape?: "circle" | "rounded"
   showTooltip?: boolean
 }
 
@@ -21,18 +22,20 @@ const gradientByTeam: Record<string, string> = {
 export default function AccountableAvatar({
   profile,
   size = "md",
+  shape = "circle",
   showTooltip = true,
 }: Props) {
   const [showTip, setShowTip] = useState(false)
   const [hasImageError, setHasImageError] = useState(false)
   const dim = size === "sm" ? 28 : 36
+  const shapeClass = shape === "rounded" ? "rounded-lg" : "rounded-full"
   const gradient = gradientByTeam[profile?.team ?? ""] ?? "from-slate-500 to-slate-700"
 
   if (!profile) {
     return (
       <div
         aria-label="ไม่ระบุ Accountable"
-        className="flex items-center justify-center rounded-full border border-white/20 bg-white/10"
+        className={`flex items-center justify-center border border-white/20 bg-white/10 ${shapeClass}`}
         style={{ height: dim, width: dim }}
       >
         <span className="text-xs text-white/40">-</span>
@@ -51,7 +54,7 @@ export default function AccountableAvatar({
       {profile.avatarUrl && !hasImageError ? (
         <Image
           alt={profile.displayName}
-          className="rounded-full border border-white/20 object-cover"
+          className={`border border-white/20 object-cover ${shapeClass}`}
           height={dim}
           src={profile.avatarUrl}
           unoptimized
@@ -61,7 +64,7 @@ export default function AccountableAvatar({
       ) : (
         <div
           aria-label={profile.displayName}
-          className={`flex items-center justify-center rounded-full border border-white/20 bg-gradient-to-br ${gradient}`}
+          className={`flex items-center justify-center border border-white/20 bg-gradient-to-br ${gradient} ${shapeClass}`}
           role="img"
           style={{ height: dim, width: dim }}
         >

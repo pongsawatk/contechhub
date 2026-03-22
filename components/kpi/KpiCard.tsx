@@ -10,23 +10,18 @@ interface KpiCardProps {
   onEdit: () => void
 }
 
-const STATUS_STYLES: Record<KpiRecord["status"], { badge: string; bar: string }> = {
-  "On Track": {
-    badge: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-    bar: "from-emerald-400 to-green-300",
-  },
-  "At Risk": {
-    badge: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-    bar: "from-amber-400 to-yellow-300",
-  },
-  "Off Track": {
-    badge: "border-rose-400/30 bg-rose-400/10 text-rose-200",
-    bar: "from-rose-500 to-red-300",
-  },
-  "Completed": {
-    badge: "border-sky-400/30 bg-sky-400/10 text-sky-200",
-    bar: "from-sky-400 to-cyan-300",
-  },
+const teamColor: Record<string, string> = {
+  Acquisition: "bg-blue-500/15 text-blue-400",
+  Retention: "bg-green-500/15 text-green-400",
+  Innovation: "bg-violet-500/15 text-violet-400",
+  "BU (Jor)": "bg-slate-500/15 text-slate-300",
+}
+
+const statusColor: Record<string, string> = {
+  "On Track": "bg-green-500/15 text-green-400",
+  "At Risk": "bg-amber-500/15 text-amber-400",
+  "Off Track": "bg-red-500/15 text-red-400",
+  Completed: "bg-blue-500/15 text-blue-400",
 }
 
 function formatValue(value: number | null, unit: string, isPercent: boolean): string {
@@ -37,114 +32,150 @@ function formatValue(value: number | null, unit: string, isPercent: boolean): st
   return `${value.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`
 }
 
-function formatPeriodStart(periodStart: string | null): string {
-  if (!periodStart) return "ไม่ระบุวันเริ่ม"
+function formatThaiDate(date: string | null): string {
+  if (!date) return "ไม่ระบุ"
 
   return new Intl.DateTimeFormat("th-TH", {
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(new Date(periodStart))
+  }).format(new Date(date))
 }
 
 export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps) {
-  const statusStyle = STATUS_STYLES[entry.status]
-  const progressWidth = Math.max(0, Math.min(entry.achievementPercent ?? 0, 100))
-  const isOverTarget = (entry.achievementPercent ?? 0) > 100
-  const accountable = entry.accountable
-  const targetLabel = formatValue(entry.target, entry.unit, false)
-  const actualLabel = formatValue(entry.actual, entry.unit, entry.actualIsPercent)
+  const progressBarColor =
+    entry.status === "On Track"
+      ? "bg-green-500"
+      : entry.status === "At Risk"
+        ? "bg-amber-500"
+        : entry.status === "Off Track"
+          ? "bg-red-500"
+          : "bg-blue-500"
+
+  const statusTextColor =
+    entry.status === "On Track"
+      ? "text-green-400"
+      : entry.status === "At Risk"
+        ? "text-amber-400"
+        : entry.status === "Off Track"
+          ? "text-red-400"
+          : "text-blue-400"
+
+  const actualTone =
+    (entry.achievementPercent ?? 0) >= 100
+      ? "text-green-400"
+      : (entry.achievementPercent ?? 0) >= 70
+        ? "text-white"
+        : "text-amber-400"
 
   return (
     <div
-      className={`glass-card flex h-full flex-col gap-4 rounded-[24px] border p-5 ${
-        isMine
-          ? "border-green-500/30 shadow-md shadow-green-500/10"
-          : "border-white/10"
+      className={`glass-card flex flex-col gap-0 p-4 transition-all ${
+        isMine ? "border border-green-500/25 shadow-md shadow-green-500/10" : ""
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3 rounded-2xl border border-emerald-400/12 bg-emerald-400/[0.05] px-3 py-2">
-          <AccountableAvatar profile={accountable} size="md" />
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-200/70">Accountable</p>
-            <p className="truncate text-sm font-medium text-white">
-              {accountable?.displayName ?? "ไม่ระบุ Accountable"}
-            </p>
-            <p className="truncate text-xs text-white/50">
-              {accountable?.functionalRole || accountable?.fullName || "ยังไม่เชื่อม Users & Access"}
-            </p>
+      <div className="mb-3 flex items-center gap-2">
+        <AccountableAvatar profile={entry.accountable} shape="rounded" size="sm" showTooltip />
+
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-xs font-medium leading-tight text-white">
+            {entry.accountable?.displayName ?? "-"}
+          </div>
+          <div className="truncate text-[10px] leading-tight text-white/40">
+            {entry.accountable?.functionalRole ?? ""}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-white/60">
-            {entry.team}
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <span
+            className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              teamColor[entry.team] ?? "bg-white/10 text-white/50"
+            }`}
+          >
+            {entry.team.replace(" (Jor)", "")}
           </span>
-          <span className={`rounded-full border px-2.5 py-1 text-[11px] ${statusStyle.badge}`}>
-            {entry.status}
+          <span
+            className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              statusColor[entry.status]
+            }`}
+          >
+            {entry.status === "On Track"
+              ? "✓ On Track"
+              : entry.status === "At Risk"
+                ? "⚠ At Risk"
+                : entry.status === "Off Track"
+                  ? "✗ Off Track"
+                  : "✓ Done"}
           </span>
         </div>
       </div>
 
-      <div>
-        <h3 className="text-sm font-semibold leading-5 text-white">{entry.kpiName}</h3>
-        <p className="mt-2 text-xs italic text-white/40">
-          {entry.measurementMethod || "ยังไม่ได้ระบุวิธีวัด"}
+      <h3 className="mb-1 line-clamp-2 text-sm font-semibold leading-snug text-white">
+        {entry.kpiName}
+      </h3>
+
+      {entry.measurementMethod && (
+        <p className="mb-3 line-clamp-2 text-[11px] italic leading-tight text-white/35">
+          {entry.measurementMethod}
         </p>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-          <p className="text-xs text-white/45">เป้าหมาย</p>
-          <p className="mt-2 text-base font-semibold text-white tabular-nums">
-            {targetLabel}
-          </p>
-          <p className="mt-1 text-xs text-white/35">{entry.unit || " "}</p>
-        </div>
+      <div className="mt-3 space-y-2">
+        <div className="flex items-center gap-3 text-xs">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="whitespace-nowrap text-white/35">เป้า</span>
+            <span className="font-semibold text-white tabular-nums">
+              {formatValue(entry.target, entry.unit, false)}
+            </span>
+          </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-          <p className="text-xs text-white/45">ผลจริง</p>
-          <p className="mt-2 text-base font-semibold text-white tabular-nums">
-            {actualLabel}
-          </p>
-          <p className="mt-1 text-xs text-white/35">
-            {entry.actualIsPercent || entry.unit === "%" ? "%" : entry.unit || " "}
-          </p>
-        </div>
+          <div className="h-3 w-px flex-shrink-0 bg-white/10" />
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-white/45">Achievement</p>
-            {isOverTarget && (
-              <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] text-emerald-200">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="whitespace-nowrap text-white/35">จริง</span>
+            <span className={`font-semibold tabular-nums ${actualTone}`}>
+              {formatValue(entry.actual, entry.unit, entry.actualIsPercent)}
+            </span>
+          </div>
+
+          <div className="h-3 w-px flex-shrink-0 bg-white/10" />
+
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <span className={`text-sm font-bold tabular-nums ${statusTextColor}`}>
+              {entry.achievementPercent !== null ? `${Math.round(entry.achievementPercent)}%` : "-"}
+            </span>
+            {(entry.achievementPercent ?? 0) > 100 && (
+              <span className="rounded bg-green-500/10 px-1 text-[9px] text-green-400">
                 เกินเป้า
               </span>
             )}
           </div>
-          <p className="mt-2 text-[11px] text-white/40">เทียบเป้าหมาย {targetLabel}</p>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              className={`h-full rounded-full bg-gradient-to-r ${statusStyle.bar}`}
-              style={{ width: `${progressWidth}%` }}
-            />
-          </div>
-          <p className="mt-3 text-base font-semibold text-white tabular-nums">
-            {entry.achievementPercent === null ? "-" : `${entry.achievementPercent}%`}
-          </p>
+        </div>
+
+        <div className="relative h-1.5 overflow-hidden rounded-full bg-white/8">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${progressBarColor}`}
+            style={{ width: `${Math.min(entry.achievementPercent ?? 0, 100)}%` }}
+          />
         </div>
       </div>
 
-      <div className="mt-auto flex items-center justify-between gap-3 text-sm text-white/45">
-        <div className="min-w-0">
-          <p className="truncate">{entry.period} / {entry.kpiType}</p>
-          <p className="mt-1 truncate text-xs text-white/35">
-            Period Start: {formatPeriodStart(entry.periodStart)}
-          </p>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="text-[10px] text-white/30">
+          <span>{entry.period}</span>
+          <span className="mx-1">·</span>
+          <span>{entry.kpiType}</span>
+          {entry.periodStart && (
+            <>
+              <br />
+              <span>Period Start: {formatThaiDate(entry.periodStart)}</span>
+            </>
+          )}
         </div>
+
         {canEdit && (
           <button
-            className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-200 transition-colors hover:border-emerald-300/30 hover:bg-emerald-400/15"
+            className="glass-ghost rounded-lg px-3 py-1 text-xs"
             type="button"
             onClick={onEdit}
           >

@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react"
 import type { AccountableProfile, KpiRecord } from "@/types/kpi"
+import AccountableAvatar from "@/components/kpi/AccountableAvatar"
 import KpiCard from "@/components/kpi/KpiCard"
 import KpiEditModal from "@/components/kpi/KpiEditModal"
-import KpiFilterBar from "@/components/kpi/KpiFilterBar"
 
 interface Props {
   appRole: string
@@ -58,6 +58,7 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
   const [selectedTeam, setSelectedTeam] = useState<"All" | KpiRecord["team"]>("All")
   const [selectedEmail, setSelectedEmail] = useState("")
   const [showOnlyMine, setShowOnlyMine] = useState(!isAdmin)
+  const [personOpen, setPersonOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<KpiRecord | null>(null)
 
   const loadRecords = useCallback(async (showSkeleton = false) => {
@@ -89,6 +90,19 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
     void loadRecords(true)
   }, [loadRecords])
 
+  useEffect(() => {
+    if (!personOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPersonOpen(false)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [personOpen])
+
   const sessionEmail = userEmail.toLowerCase()
   const accountableOptions: AccountableProfile[] = Array.from(
     new Map(
@@ -97,6 +111,8 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
         .map((record) => [record.accountable!.email, record.accountable!] as const)
     ).values()
   ).sort((a, b) => a.displayName.localeCompare(b.displayName, "th"))
+  const selectedAccountable =
+    accountableOptions.find((profile) => profile.email === selectedEmail) ?? null
 
   const filtered = records.filter((record) => {
     const teamOk = selectedTeam === "All" || record.team === selectedTeam
@@ -146,16 +162,119 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
           </div>
         )}
 
-        <KpiFilterBar
-          accountableOptions={accountableOptions}
-          isAdmin={isAdmin}
-          selectedEmail={selectedEmail}
-          selectedTeam={selectedTeam}
-          showOnlyMine={showOnlyMine}
-          onSelectedEmailChange={setSelectedEmail}
-          onSelectedTeamChange={setSelectedTeam}
-          onShowOnlyMineChange={setShowOnlyMine}
-        />
+        <div className="relative z-20 flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <button
+              className="glass-input flex min-w-[140px] items-center gap-2 rounded-lg px-3 py-1.5 text-sm"
+              type="button"
+              onClick={() => setPersonOpen((prev) => !prev)}
+            >
+              {selectedAccountable ? (
+                <>
+                  <AccountableAvatar
+                    profile={selectedAccountable}
+                    showTooltip={false}
+                    size="sm"
+                  />
+                  <span className="max-w-[80px] truncate text-white">
+                    {selectedAccountable.displayName}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/10">
+                    <span className="h-2 w-2 rounded-full bg-white/45" />
+                  </span>
+                  <span className="text-white/70">ทุกคน</span>
+                </>
+              )}
+              <span className="ml-auto flex-shrink-0 text-[10px] text-white/40">▼</span>
+            </button>
+
+            {personOpen && (
+              <>
+                <button
+                  aria-label="Close accountable dropdown"
+                  className="fixed inset-0 z-40"
+                  type="button"
+                  onClick={() => setPersonOpen(false)}
+                />
+                <div className="glass-card absolute left-0 top-full z-50 mt-1 min-w-[180px] py-1 shadow-2xl">
+                  <button
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-white/5 ${
+                      !selectedAccountable ? "text-green-400" : "text-white/70"
+                    }`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedEmail("")
+                      setPersonOpen(false)
+                    }}
+                  >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/10">
+                      <span className="h-2 w-2 rounded-full bg-white/45" />
+                    </span>
+                    ทุกคน
+                  </button>
+
+                  {accountableOptions.map((profile) => (
+                    <button
+                      key={profile.email}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-white/5 ${
+                        selectedAccountable?.email === profile.email
+                          ? "text-green-400"
+                          : "text-white/70"
+                      }`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedEmail(profile.email)
+                        setPersonOpen(false)
+                      }}
+                    >
+                      <AccountableAvatar
+                        profile={profile}
+                        showTooltip={false}
+                        size="sm"
+                      />
+                      <span className="truncate">{profile.displayName}</span>
+                      <span className="ml-auto text-xs text-white/30">
+                        {profile.functionalRole?.split(" ")[0] ?? ""}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="h-6 w-px bg-white/10" />
+
+          {(["All", "BU (Jor)", "Acquisition", "Retention", "Innovation"] as const).map((team) => (
+            <button
+              key={team}
+              className={`rounded-lg px-3 py-1.5 text-sm transition-all ${
+                selectedTeam === team
+                  ? "border border-green-500/30 bg-green-500/20 text-green-400"
+                  : "text-white/50 hover:bg-white/5 hover:text-white/80"
+              }`}
+              type="button"
+              onClick={() => setSelectedTeam(team)}
+            >
+              {team === "BU (Jor)" ? "BU" : team}
+            </button>
+          ))}
+
+          <div className="flex-1" />
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-white/60 hover:text-white/80">
+            <input
+              checked={showOnlyMine}
+              className="h-4 w-4 rounded accent-green-500"
+              type="checkbox"
+              onChange={(event) => setShowOnlyMine(event.target.checked)}
+            />
+            เฉพาะของฉัน
+          </label>
+        </div>
 
         {error ? (
           <div className="glass-card rounded-2xl border border-rose-400/30 p-6 text-sm text-rose-200">
