@@ -16,7 +16,7 @@ function normalizeModelText(text: unknown): string {
   return typeof text === 'string' ? text.trim() : ''
 }
 
-async function readJson(res: Response): Promise<any> {
+async function readJson(res: Response): Promise<unknown> {
   try {
     return await res.json()
   } catch {
