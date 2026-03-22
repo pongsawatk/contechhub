@@ -1,21 +1,16 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { hasAuthenticatedUser, hasBuAccess } from "@/lib/api-auth"
-import { getKpiRecords, getUsersByNotionIds } from "@/lib/notion"
-import type { KpiRecord, OwnerProfile } from "@/types/kpi"
+import { getKpiRecords, getUserProfileByPageId } from "@/lib/notion"
+import type { AccountableProfile, KpiRecord } from "@/types/kpi"
 
-async function getAvatarUrl(profile: OwnerProfile, sessionEmail: string, accessToken?: string) {
-  if (!profile.email || !accessToken) {
-    return null
-  }
-
-  if (profile.email.toLowerCase() === sessionEmail.toLowerCase()) {
-    return "/api/me/photo"
-  }
-
+async function fetchAvatarAsBase64(
+  email: string,
+  accessToken: string
+): Promise<string | null> {
   try {
     const response = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(profile.email)}/photo/$value`,
+      `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}/photo/$value`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -28,16 +23,16 @@ async function getAvatarUrl(profile: OwnerProfile, sessionEmail: string, accessT
       return null
     }
 
-    const contentType = response.headers.get("content-type") ?? "image/jpeg"
-    const photoBuffer = Buffer.from(await response.arrayBuffer())
-    return `data:${contentType};base64,${photoBuffer.toString("base64")}`
+    const mime = response.headers.get("content-type") ?? "image/jpeg"
+    const buffer = await response.arrayBuffer()
+    return `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`
   } catch (error) {
     console.error("[API] KPI avatar fetch error:", error)
     return null
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth()
     if (!hasAuthenticatedUser(session)) {
@@ -47,48 +42,46 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const mine = searchParams.get("mine") === "true"
-    const ownerFilter = searchParams.get("owner")
-    const sessionEmail = session.user.email.toLowerCase()
     const records = await getKpiRecords()
-    const ownerIds = Array.from(new Set(records.flatMap((record) => record.ownerNotionIds)))
-    const ownerProfiles = await getUsersByNotionIds(ownerIds)
-    const enrichedOwnerProfiles = await Promise.all(
-      ownerProfiles.map(async (profile) => ({
-        ...profile,
-        avatarUrl: await getAvatarUrl(profile, session.user.email, session.accessToken),
-      }))
-    )
-    const ownerProfilesById = new Map(
-      enrichedOwnerProfiles.map((profile) => [profile.notionUserId, profile])
+    const accountablePageIds = Array.from(
+      new Set(
+        records
+          .map((record) => record.accountablePageId)
+          .filter((pageId): pageId is string => Boolean(pageId))
+      )
     )
 
-    const entries: KpiRecord[] = records.map((record) => ({
+    const profiles = await Promise.all(
+      accountablePageIds.map((pageId) => getUserProfileByPageId(pageId))
+    )
+    const profileMap = new Map(
+      accountablePageIds.map((pageId, index) => [pageId, profiles[index] ?? null] as const)
+    )
+
+    const accessToken = session.accessToken
+    const enrichedProfiles = await Promise.all(
+      Array.from(profileMap.entries()).map(async ([pageId, profile]) => {
+        if (!profile) {
+          return [pageId, null] as const
+        }
+
+        const avatarUrl = accessToken
+          ? await fetchAvatarAsBase64(profile.email, accessToken)
+          : null
+
+        return [pageId, { ...profile, avatarUrl }] as const
+      })
+    )
+    const enrichedProfileMap = new Map<string, AccountableProfile | null>(enrichedProfiles)
+
+    const result: KpiRecord[] = records.map((record) => ({
       ...record,
-      ownerProfiles: record.ownerNotionIds
-        .map((ownerId) => ownerProfilesById.get(ownerId))
-        .filter((profile): profile is OwnerProfile => Boolean(profile)),
+      accountable: record.accountablePageId
+        ? (enrichedProfileMap.get(record.accountablePageId) ?? null)
+        : null,
     }))
 
-    const filteredEntries = entries.filter((entry) => {
-      if (mine && !entry.ownerProfiles.some((profile) => profile.email.toLowerCase() === sessionEmail)) {
-        return false
-      }
-
-      if (!ownerFilter) {
-        return true
-      }
-
-      const normalizedOwnerFilter = ownerFilter.toLowerCase()
-      return entry.ownerProfiles.some((profile) =>
-        profile.notionUserId === ownerFilter ||
-        profile.email.toLowerCase() === normalizedOwnerFilter ||
-        profile.displayName.toLowerCase() === normalizedOwnerFilter
-      )
-    })
-
-    return NextResponse.json(filteredEntries)
+    return NextResponse.json(result)
   } catch (error) {
     console.error("[API] KPI GET error:", error)
     return NextResponse.json({ error: "เกิดข้อผิดพลาดภายในระบบ" }, { status: 500 })

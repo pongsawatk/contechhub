@@ -1,18 +1,18 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import type { KpiRecord, OwnerProfile } from "@/types/kpi"
-import OwnerAvatar from "@/components/kpi/OwnerAvatar"
+import type { AccountableProfile, KpiRecord } from "@/types/kpi"
+import AccountableAvatar from "@/components/kpi/AccountableAvatar"
 
 interface KpiFilterBarProps {
-  filterOwner: string
-  filterTeam: "All" | KpiRecord["team"]
+  accountableOptions: AccountableProfile[]
   isAdmin: boolean
-  owners: OwnerProfile[]
-  showMineOnly: boolean
-  onOwnerChange: (ownerId: string) => void
-  onShowMineOnlyChange: (value: boolean) => void
-  onTeamChange: (team: "All" | KpiRecord["team"]) => void
+  selectedEmail: string
+  selectedTeam: "All" | KpiRecord["team"]
+  showOnlyMine: boolean
+  onSelectedEmailChange: (email: string) => void
+  onSelectedTeamChange: (team: "All" | KpiRecord["team"]) => void
+  onShowOnlyMineChange: (value: boolean) => void
 }
 
 const TEAM_FILTERS: Array<{ label: string; value: "All" | KpiRecord["team"] }> = [
@@ -24,29 +24,29 @@ const TEAM_FILTERS: Array<{ label: string; value: "All" | KpiRecord["team"] }> =
 ]
 
 export default function KpiFilterBar({
-  filterOwner,
-  filterTeam,
+  accountableOptions,
   isAdmin,
-  owners,
-  showMineOnly,
-  onOwnerChange,
-  onShowMineOnlyChange,
-  onTeamChange,
+  selectedEmail,
+  selectedTeam,
+  showOnlyMine,
+  onSelectedEmailChange,
+  onSelectedTeamChange,
+  onShowOnlyMineChange,
 }: KpiFilterBarProps) {
-  const [isOwnerMenuOpen, setIsOwnerMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  const selectedOwner = owners.find((owner) => owner.notionUserId === filterOwner) ?? null
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const selectedProfile = accountableOptions.find((profile) => profile.email === selectedEmail) ?? null
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIsOwnerMenuOpen(false)
+        setIsOpen(false)
       }
     }
 
     function handlePointerDown(event: MouseEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setIsOwnerMenuOpen(false)
+      if (!dropdownRef.current?.contains(event.target as Node)) {
+        setIsOpen(false)
       }
     }
 
@@ -59,18 +59,18 @@ export default function KpiFilterBar({
   }, [])
 
   return (
-    <div className="glass-card flex flex-col gap-4 rounded-2xl border border-white/10 p-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="glass-card flex flex-col gap-4 rounded-2xl border border-white/10 p-4">
       <div className="flex flex-wrap items-center gap-2">
         {TEAM_FILTERS.map((team) => (
           <button
             key={team.value}
             className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
-              filterTeam === team.value
+              selectedTeam === team.value
                 ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-200"
                 : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/20 hover:text-white"
             }`}
             type="button"
-            onClick={() => onTeamChange(team.value)}
+            onClick={() => onSelectedTeamChange(team.value)}
           >
             {team.label}
           </button>
@@ -78,62 +78,58 @@ export default function KpiFilterBar({
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative" ref={menuRef}>
+        <div className="relative w-full sm:max-w-xs" ref={dropdownRef}>
           <button
-            aria-expanded={isOwnerMenuOpen}
-            className="glass-input flex min-w-[220px] items-center justify-between gap-3 px-3 py-2 text-left text-sm"
+            aria-expanded={isOpen}
+            className="glass-input flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm"
             type="button"
-            onClick={() => setIsOwnerMenuOpen((open) => !open)}
+            onClick={() => setIsOpen((open) => !open)}
           >
             <div className="flex min-w-0 items-center gap-3">
-              <span className="text-white/45">Owner:</span>
-              {selectedOwner ? (
-                <>
-                  <OwnerAvatar maxVisible={1} owners={[selectedOwner]} size="sm" />
-                  <span className="truncate text-white">{selectedOwner.displayName}</span>
-                </>
-              ) : (
-                <span className="truncate text-white">ทั้งหมด</span>
-              )}
+              <AccountableAvatar profile={selectedProfile} size="sm" />
+              <span className="truncate text-white">
+                {selectedProfile ? selectedProfile.displayName : "ทุกคน"}
+              </span>
             </div>
-            <span className="text-white/45">▼</span>
+            <span className="text-white/45">v</span>
           </button>
 
-          {isOwnerMenuOpen && (
-            <div className="absolute right-0 z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+          {isOpen && (
+            <div className="absolute left-0 right-0 z-20 mt-2 max-h-72 overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
               <button
-                className={`flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition-colors ${
-                  filterOwner === "all" ? "bg-emerald-400/10 text-emerald-200" : "text-white/80 hover:bg-white/5"
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                  !selectedEmail ? "bg-emerald-400/10 text-emerald-200" : "text-white/80 hover:bg-white/5"
                 }`}
                 type="button"
                 onClick={() => {
-                  onOwnerChange("all")
-                  setIsOwnerMenuOpen(false)
+                  onSelectedEmailChange("")
+                  setIsOpen(false)
                 }}
               >
-                ทั้งหมด
+                <AccountableAvatar profile={null} size="sm" />
+                <span className="truncate">ทุกคน</span>
               </button>
-              {owners.map((owner) => (
+
+              {accountableOptions.map((profile) => (
                 <button
-                  key={owner.notionUserId}
+                  key={profile.pageId}
                   className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
-                    filterOwner === owner.notionUserId
+                    selectedEmail === profile.email
                       ? "bg-emerald-400/10 text-emerald-200"
                       : "text-white/80 hover:bg-white/5"
                   }`}
-                  title={owner.functionalRole}
                   type="button"
                   onClick={() => {
-                    onOwnerChange(owner.notionUserId)
-                    setIsOwnerMenuOpen(false)
+                    onSelectedEmailChange(profile.email)
+                    setIsOpen(false)
                   }}
                 >
-                  <OwnerAvatar maxVisible={1} owners={[owner]} size="sm" />
+                  <AccountableAvatar profile={profile} size="sm" />
                   <div className="min-w-0">
-                    <div className="truncate">{owner.displayName}</div>
-                    {owner.functionalRole && (
-                      <div className="truncate text-xs text-white/40">{owner.functionalRole}</div>
-                    )}
+                    <div className="truncate">{profile.displayName}</div>
+                    <div className="truncate text-xs text-white/40">
+                      {profile.functionalRole ? `${profile.displayName} - ${profile.functionalRole}` : profile.displayName}
+                    </div>
                   </div>
                 </button>
               ))}
@@ -143,11 +139,11 @@ export default function KpiFilterBar({
 
         <label className={`flex items-center gap-2 text-sm ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}>
           <input
-            checked={showMineOnly}
+            checked={showOnlyMine}
             className="h-4 w-4 accent-emerald-400"
             disabled={!isAdmin}
             type="checkbox"
-            onChange={(event) => onShowMineOnlyChange(event.target.checked)}
+            onChange={(event) => onShowOnlyMineChange(event.target.checked)}
           />
           <span className="text-white/70">เฉพาะของฉัน</span>
         </label>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import type { KpiRecord } from "@/types/kpi"
+import type { AccountableProfile, KpiRecord } from "@/types/kpi"
 import KpiCard from "@/components/kpi/KpiCard"
 import KpiEditModal from "@/components/kpi/KpiEditModal"
 import KpiFilterBar from "@/components/kpi/KpiFilterBar"
@@ -16,7 +16,7 @@ function KpiSummarySkeleton() {
     <div className="glass-card p-4">
       <div className="h-8 w-14 animate-pulse rounded bg-white/10" />
       <div className="mt-3 h-4 w-24 animate-pulse rounded bg-white/10" />
-      <div className="mt-2 h-3 w-28 animate-pulse rounded bg-white/5" />
+      <div className="mt-2 h-3 w-24 animate-pulse rounded bg-white/5" />
     </div>
   )
 }
@@ -26,9 +26,9 @@ function KpiCardSkeleton() {
     <div className="glass-card space-y-4 p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 animate-pulse rounded-full bg-white/10" />
+          <div className="h-9 w-9 animate-pulse rounded-full bg-white/10" />
           <div className="space-y-2">
-            <div className="h-3 w-28 animate-pulse rounded bg-white/10" />
+            <div className="h-3 w-24 animate-pulse rounded bg-white/10" />
             <div className="h-3 w-20 animate-pulse rounded bg-white/5" />
           </div>
         </div>
@@ -45,23 +45,22 @@ function KpiCardSkeleton() {
           </div>
         ))}
       </div>
-      <div className="h-9 w-20 animate-pulse rounded-xl bg-white/10" />
     </div>
   )
 }
 
 export default function KpiDisplay({ appRole, userEmail }: Props) {
   const isAdmin = appRole === "admin"
-  const [entries, setEntries] = useState<KpiRecord[]>([])
+  const [records, setRecords] = useState<KpiRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState("")
-  const [filterTeam, setFilterTeam] = useState<"All" | KpiRecord["team"]>("All")
-  const [filterOwner, setFilterOwner] = useState("all")
-  const [showMineOnly, setShowMineOnly] = useState(!isAdmin)
-  const [editingEntry, setEditingEntry] = useState<KpiRecord | null>(null)
+  const [selectedTeam, setSelectedTeam] = useState<"All" | KpiRecord["team"]>("All")
+  const [selectedEmail, setSelectedEmail] = useState("")
+  const [showOnlyMine, setShowOnlyMine] = useState(!isAdmin)
+  const [editingRecord, setEditingRecord] = useState<KpiRecord | null>(null)
 
-  const loadEntries = useCallback(async (showSkeleton = false) => {
+  const loadRecords = useCallback(async (showSkeleton = false) => {
     setError("")
     if (showSkeleton) {
       setLoading(true)
@@ -70,16 +69,14 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
     }
 
     try {
-      const response = await fetch("/api/internal/kpi", {
-        cache: "no-store",
-      })
+      const response = await fetch("/api/internal/kpi", { cache: "no-store" })
       const data = await response.json()
 
       if (!response.ok) {
         throw new Error(data.error ?? "เกิดข้อผิดพลาดในการโหลด KPI")
       }
 
-      setEntries(data as KpiRecord[])
+      setRecords(data as KpiRecord[])
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "เกิดข้อผิดพลาดในการโหลด KPI")
     } finally {
@@ -89,40 +86,31 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
   }, [])
 
   useEffect(() => {
-    void loadEntries(true)
-  }, [loadEntries])
+    void loadRecords(true)
+  }, [loadRecords])
 
-  const normalizedUserEmail = userEmail.toLowerCase()
-  const ownerDirectory = Array.from(
+  const sessionEmail = userEmail.toLowerCase()
+  const accountableOptions: AccountableProfile[] = Array.from(
     new Map(
-      entries
-        .flatMap((entry) => entry.ownerProfiles)
-        .map((profile) => [profile.notionUserId || profile.email || profile.displayName, profile] as const)
+      records
+        .filter((record) => record.accountable)
+        .map((record) => [record.accountable!.email, record.accountable!] as const)
     ).values()
-  )
+  ).sort((a, b) => a.displayName.localeCompare(b.displayName, "th"))
 
-  const filteredEntries = entries.filter((entry) => {
-    if (filterTeam !== "All" && entry.team !== filterTeam) {
-      return false
-    }
-
-    if (filterOwner !== "all" && !entry.ownerProfiles.some((profile) => profile.notionUserId === filterOwner)) {
-      return false
-    }
-
-    if (showMineOnly && !entry.ownerProfiles.some((profile) => profile.email.toLowerCase() === normalizedUserEmail)) {
-      return false
-    }
-
-    return true
+  const filtered = records.filter((record) => {
+    const teamOk = selectedTeam === "All" || record.team === selectedTeam
+    const personOk = !selectedEmail || record.accountable?.email === selectedEmail
+    const mineOk = !showOnlyMine || record.accountable?.email.toLowerCase() === sessionEmail
+    return teamOk && personOk && mineOk
   })
 
-  const summaryCards = [
-    { label: "On Track", color: "text-emerald-300", count: filteredEntries.filter((entry) => entry.status === "On Track").length },
-    { label: "At Risk", color: "text-amber-300", count: filteredEntries.filter((entry) => entry.status === "At Risk").length },
-    { label: "Off Track", color: "text-rose-300", count: filteredEntries.filter((entry) => entry.status === "Off Track").length },
-    { label: "Completed", color: "text-sky-300", count: filteredEntries.filter((entry) => entry.status === "Completed").length },
-  ]
+  const counts = {
+    onTrack: filtered.filter((record) => record.status === "On Track").length,
+    atRisk: filtered.filter((record) => record.status === "At Risk").length,
+    offTrack: filtered.filter((record) => record.status === "Off Track").length,
+    completed: filtered.filter((record) => record.status === "Completed").length,
+  }
 
   return (
     <>
@@ -130,7 +118,7 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-white">KPI Dashboard</h1>
-            <p className="mt-1 text-sm text-white/50">ติดตาม KPI, owner, และความคืบหน้าจากเป้าหมายล่าสุด</p>
+            <p className="mt-1 text-sm text-white/50">ติดตาม KPI ที่ผูกกับ Accountable จาก Users & Access</p>
           </div>
           {refreshing && <p className="text-xs text-white/40">กำลังรีเฟรชข้อมูลล่าสุด...</p>}
         </div>
@@ -143,25 +131,30 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {summaryCards.map((card) => (
+            {[
+              { label: "On Track", color: "text-emerald-300", count: counts.onTrack },
+              { label: "At Risk", color: "text-amber-300", count: counts.atRisk },
+              { label: "Off Track", color: "text-rose-300", count: counts.offTrack },
+              { label: "Completed", color: "text-sky-300", count: counts.completed },
+            ].map((card) => (
               <div key={card.label} className="glass-card p-4">
                 <div className={`text-3xl font-semibold tabular-nums ${card.color}`}>{card.count}</div>
                 <div className="mt-2 text-sm text-white/75">{card.label}</div>
-                <div className="mt-1 text-xs text-white/40">จาก {filteredEntries.length} KPI ทั้งหมด</div>
+                <div className="mt-1 text-xs text-white/40">จาก {filtered.length} KPI</div>
               </div>
             ))}
           </div>
         )}
 
         <KpiFilterBar
-          filterOwner={filterOwner}
-          filterTeam={filterTeam}
+          accountableOptions={accountableOptions}
           isAdmin={isAdmin}
-          owners={ownerDirectory}
-          showMineOnly={showMineOnly}
-          onOwnerChange={setFilterOwner}
-          onShowMineOnlyChange={setShowMineOnly}
-          onTeamChange={setFilterTeam}
+          selectedEmail={selectedEmail}
+          selectedTeam={selectedTeam}
+          showOnlyMine={showOnlyMine}
+          onSelectedEmailChange={setSelectedEmail}
+          onSelectedTeamChange={setSelectedTeam}
+          onShowOnlyMineChange={setShowOnlyMine}
         />
 
         {error ? (
@@ -174,24 +167,22 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
               <KpiCardSkeleton key={index} />
             ))}
           </div>
-        ) : filteredEntries.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="glass-card rounded-2xl p-10 text-center text-sm text-white/50">
             ไม่พบ KPI ที่ตรงกับเงื่อนไขที่เลือก
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {filteredEntries.map((entry) => {
-              const isMine = entry.ownerProfiles.some(
-                (profile) => profile.email.toLowerCase() === normalizedUserEmail
-              )
+            {filtered.map((record) => {
+              const isMine = record.accountable?.email.toLowerCase() === sessionEmail
 
               return (
                 <KpiCard
-                  key={entry.id}
+                  key={record.id}
                   canEdit={isAdmin || isMine}
-                  entry={entry}
-                  isMine={isMine}
-                  onEdit={() => setEditingEntry(entry)}
+                  entry={record}
+                  isMine={Boolean(isMine)}
+                  onEdit={() => setEditingRecord(record)}
                 />
               )
             })}
@@ -200,12 +191,12 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
       </div>
 
       <KpiEditModal
-        entry={editingEntry}
-        open={Boolean(editingEntry)}
-        onClose={() => setEditingEntry(null)}
+        entry={editingRecord}
+        open={Boolean(editingRecord)}
+        onClose={() => setEditingRecord(null)}
         onSaved={async () => {
-          setEditingEntry(null)
-          await loadEntries()
+          setEditingRecord(null)
+          await loadRecords()
         }}
       />
     </>

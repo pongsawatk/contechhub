@@ -1,7 +1,7 @@
 "use client"
 
 import type { KpiRecord } from "@/types/kpi"
-import OwnerAvatar from "@/components/kpi/OwnerAvatar"
+import AccountableAvatar from "@/components/kpi/AccountableAvatar"
 
 interface KpiCardProps {
   entry: KpiRecord
@@ -29,64 +29,38 @@ const STATUS_STYLES: Record<KpiRecord["status"], { badge: string; bar: string }>
   },
 }
 
-function getMetricValue(value: number | null, unit: string, actualIsPercent: boolean) {
-  if (value === null) {
-    return { valueLabel: "—", unitLabel: "" }
-  }
-
-  if (unit === "THB") {
-    return {
-      valueLabel: `฿${value.toLocaleString("th-TH")}`,
-      unitLabel: "THB",
-    }
-  }
-
-  if (actualIsPercent || unit === "%") {
-    return {
-      valueLabel: `${value}%`,
-      unitLabel: "%",
-    }
-  }
-
-  return {
-    valueLabel: value.toLocaleString("th-TH"),
-    unitLabel: unit,
-  }
-}
-
-function getOwnerLabel(entry: KpiRecord) {
-  if (entry.ownerProfiles.length === 0) {
-    return "Unassigned"
-  }
-
-  if (entry.ownerProfiles.length === 1) {
-    return entry.ownerProfiles[0].displayName
-  }
-
-  const firstTwo = entry.ownerProfiles.slice(0, 2).map((owner) => owner.displayName).join(", ")
-  const remaining = entry.ownerProfiles.length - 2
-  return remaining > 0 ? `${firstTwo} +${remaining}` : firstTwo
+function formatValue(value: number | null, unit: string, isPercent: boolean): string {
+  if (value === null) return "-"
+  if (isPercent || unit === "%") return `${value}%`
+  if (unit === "THB") return `฿${value.toLocaleString("th-TH")}`
+  if (unit === "x") return `${value}x`
+  return `${value.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`
 }
 
 export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps) {
-  const targetMetric = getMetricValue(entry.target, entry.unit, false)
-  const actualMetric = getMetricValue(entry.actual, entry.unit, entry.actualIsPercent)
-  const achievementLabel = entry.achievementPercent === null ? "—" : `${entry.achievementPercent}%`
-  const progressWidth = Math.max(0, Math.min(entry.achievementPercent ?? 0, 100))
   const statusStyle = STATUS_STYLES[entry.status]
+  const progressWidth = Math.max(0, Math.min(entry.achievementPercent ?? 0, 100))
+  const isOverTarget = (entry.achievementPercent ?? 0) > 100
+  const accountable = entry.accountable
 
   return (
     <div
       className={`glass-card flex h-full flex-col gap-4 rounded-[24px] border p-5 ${
-        isMine ? "border-emerald-500/30" : "border-white/10"
+        isMine
+          ? "border-green-500/30 shadow-md shadow-green-500/10"
+          : "border-white/10"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <OwnerAvatar owners={entry.ownerProfiles} size="sm" />
+        <div className="flex min-w-0 items-start gap-3">
+          <AccountableAvatar profile={accountable} size="md" />
           <div className="min-w-0">
-            <p className="truncate text-sm text-white">{getOwnerLabel(entry)}</p>
-            <p className="truncate text-xs text-white/45">{entry.team}</p>
+            <p className="truncate text-sm font-medium text-white">
+              {accountable?.displayName ?? "ไม่ระบุ Accountable"}
+            </p>
+            <p className="truncate text-xs text-white/50">
+              {accountable?.functionalRole || accountable?.fullName || "ยังไม่เชื่อม Users & Access"}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -100,40 +74,55 @@ export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold leading-snug text-white">{entry.kpiName}</h3>
-        <p className="mt-2 text-sm text-white/50">
-          วิธีวัด: {entry.measurementMethod || "ยังไม่ได้ระบุ"}
+        <h3 className="text-sm font-semibold leading-5 text-white">{entry.kpiName}</h3>
+        <p className="mt-2 text-xs italic text-white/40">
+          {entry.measurementMethod || "ยังไม่ได้ระบุวิธีวัด"}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-          <p className="text-xs text-white/45">Target</p>
-          <p className="mt-2 text-lg font-semibold text-white tabular-nums">{targetMetric.valueLabel}</p>
-          <p className="mt-1 text-xs text-white/35">{targetMetric.unitLabel || " "}</p>
+          <p className="text-xs text-white/45">เป้าหมาย</p>
+          <p className="mt-2 text-base font-semibold text-white tabular-nums">
+            {formatValue(entry.target, entry.unit, false)}
+          </p>
+          <p className="mt-1 text-xs text-white/35">{entry.unit || " "}</p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-          <p className="text-xs text-white/45">Actual</p>
-          <p className="mt-2 text-lg font-semibold text-white tabular-nums">{actualMetric.valueLabel}</p>
-          <p className="mt-1 text-xs text-white/35">{actualMetric.unitLabel || entry.unit || " "}</p>
+          <p className="text-xs text-white/45">ผลจริง</p>
+          <p className="mt-2 text-base font-semibold text-white tabular-nums">
+            {formatValue(entry.actual, entry.unit, entry.actualIsPercent)}
+          </p>
+          <p className="mt-1 text-xs text-white/35">
+            {entry.actualIsPercent || entry.unit === "%" ? "%" : entry.unit || " "}
+          </p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-          <p className="text-xs text-white/45">Achievement %</p>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-white/45">Achievement</p>
+            {isOverTarget && (
+              <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] text-emerald-200">
+                เกินเป้า
+              </span>
+            )}
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
             <div
               className={`h-full rounded-full bg-gradient-to-r ${statusStyle.bar}`}
               style={{ width: `${progressWidth}%` }}
             />
           </div>
-          <p className="mt-3 text-lg font-semibold text-white tabular-nums">{achievementLabel}</p>
+          <p className="mt-3 text-base font-semibold text-white tabular-nums">
+            {entry.achievementPercent === null ? "-" : `${entry.achievementPercent}%`}
+          </p>
         </div>
       </div>
 
       <div className="mt-auto flex items-center justify-between gap-3 text-sm text-white/45">
         <p className="truncate">
-          {entry.period} · {entry.kpiType}
+          {entry.period} / {entry.kpiType}
         </p>
         {canEdit && (
           <button

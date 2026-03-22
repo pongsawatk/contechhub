@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { hasAuthenticatedUser } from "@/lib/api-auth"
-import { getKpiRecords, getUsersByNotionIds, updateKpiEntry } from "@/lib/notion"
+import { getKpiRecordById, getUserProfileByPageId, updateKpiEntry } from "@/lib/notion"
 import type { KpiRecord } from "@/types/kpi"
 
 function isValidStatus(status: unknown): status is KpiRecord["status"] {
@@ -14,27 +14,28 @@ export async function PATCH(
 ) {
   try {
     const session = await auth()
-    if (!hasAuthenticatedUser(session)) {
+    if (!hasAuthenticatedUser(session) || !session.user.profile) {
       return NextResponse.json({ error: "ไม่ได้เข้าสู่ระบบ" }, { status: 401 })
     }
 
-    const appRole = session.user.profile?.appRole
     const { id } = await params
-    const records = await getKpiRecords()
-    const entry = records.find((record) => record.id === id)
-
-    if (!entry) {
+    const record = await getKpiRecordById(id)
+    if (!record) {
       return NextResponse.json({ error: "ไม่พบข้อมูล" }, { status: 404 })
     }
 
-    const ownerProfiles = await getUsersByNotionIds(entry.ownerNotionIds)
-    const isOwner = ownerProfiles.some(
-      (profile) => profile.email.toLowerCase() === session.user.email.toLowerCase()
-    )
-    const isAdmin = appRole === "admin"
+    const accountableProfile = record.accountablePageId
+      ? await getUserProfileByPageId(record.accountablePageId)
+      : null
+    const isAccountable =
+      accountableProfile?.email.toLowerCase() === session.user.email.toLowerCase()
+    const isAdmin = session.user.profile.appRole === "admin"
 
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 })
+    if (!isAccountable && !isAdmin) {
+      return NextResponse.json(
+        { error: "Forbidden - ไม่ใช่ Accountable ของ KPI นี้" },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()
@@ -59,20 +60,6 @@ export async function PATCH(
         return NextResponse.json({ error: "ค่าสถานะไม่ถูกต้อง" }, { status: 400 })
       }
       payload.status = body.status
-    }
-
-    if ("unit" in body) {
-      if (typeof body.unit !== "string") {
-        return NextResponse.json({ error: "ค่า Unit ไม่ถูกต้อง" }, { status: 400 })
-      }
-      payload.unit = body.unit
-    }
-
-    if ("actualIsPercent" in body) {
-      if (typeof body.actualIsPercent !== "boolean") {
-        return NextResponse.json({ error: "ค่า Actual Is Percent ไม่ถูกต้อง" }, { status: 400 })
-      }
-      payload.actualIsPercent = body.actualIsPercent
     }
 
     if (Object.keys(payload).length === 0) {

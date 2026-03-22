@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache"
 import type { CalculatorInput, PriceBreakdown } from "@/types/calculator"
 import type { UserProfile } from "@/types/user"
 import type { PricingItem } from "@/types/pricing"
-import type { KpiRecord, KpiEntry, OwnerProfile } from "@/types/kpi"
+import type { AccountableProfile, KpiRecord, KpiEntry } from "@/types/kpi"
 import type { RevenueEntry } from "@/types/revenue"
 import type { Customer, HotQuotation, SalesOrder } from "@/types/pipeline"
 import type { QuoteSessionRecord, StoredQuoteState } from "@/types/quote"
@@ -78,59 +78,9 @@ async function queryAllDataSourcePages(dataSourceId: string, filter?: any, sorts
   return results
 }
 
-async function listAllNotionUsers(): Promise<Array<{ id: string; name: string; email: string }>> {
-  const users: Array<{ id: string; name: string; email: string }> = []
-  let cursor: string | undefined
-
-  do {
-    const response = await notion.users.list({
-      ...(cursor ? { start_cursor: cursor } : {}),
-      page_size: 100,
-    })
-
-    users.push(
-      ...response.results.map((user: any) => ({
-        id: user.id as string,
-        name: (user.name ?? "") as string,
-        email: (user.person?.email ?? "") as string,
-      }))
-    )
-
-    cursor = response.has_more ? response.next_cursor ?? undefined : undefined
-  } while (cursor)
-
-  return users
-}
-
-const getCachedNotionUsers = unstable_cache(
-  async () => listAllNotionUsers(),
-  ["notion-users-directory"],
-  { revalidate: 3600 }
-)
-
-const getCachedActiveUserPages = unstable_cache(
-  async () =>
-    queryAllDataSourcePages(
-      process.env.NOTION_USERS_DB_ID!,
-      { property: "Active", checkbox: { equals: true } } as any
-    ),
-  ["notion-active-users-db"],
-  { revalidate: 3600 }
-)
-
-function getPagePeopleIds(page: any): string[] {
-  return Object.values(page?.properties ?? {})
-    .filter((property: any) => property?.type === "people")
-    .flatMap((property: any) => (property.people ?? []).map((person: any) => person.id as string))
-}
-
-function mapOwnerProfileFromPage(page: any): Omit<OwnerProfile, "notionUserId" | "avatarUrl"> {
-  return {
-    displayName: titleText(prop(page, "Display Name")) || richText(prop(page, "Display Name")),
-    email: emailProp(prop(page, "Email")),
-    team: selectProp(prop(page, "Team")) || richText(prop(page, "Team")),
-    functionalRole: richText(prop(page, "Functional Role")) || selectProp(prop(page, "Functional Role")),
-  }
+function buildInitials(displayName: string, fullName: string): string {
+  const source = displayName || fullName
+  return source.slice(0, 2).toUpperCase() || "??"
 }
 function splitRichText(content: string, chunkSize = 1800): Array<{ type: "text"; text: { content: string } }> {
   if (!content) return [{ type: "text", text: { content: "" } }]
@@ -310,6 +260,8 @@ export async function getKBEntries(salesLane?: string): Promise<KBEntry[]> {
 function mapKpiRecord(page: any): KpiRecord {
   const target = nullableNumberProp(prop(page, "Target"))
   const actual = nullableNumberProp(prop(page, "Actual"))
+  const accountableRelations = page.properties["Accountable"]?.relation ?? []
+  const accountablePageId = accountableRelations[0]?.id ?? null
   const achievementPercent =
     nullableNumberProp(propAny(page, ["Achievement %", "Achievement Percent"])) ??
     (target && actual !== null ? Math.round((actual / target) * 100) : null)
@@ -329,8 +281,8 @@ function mapKpiRecord(page: any): KpiRecord {
     unit: page.properties["Unit"]?.rich_text?.[0]?.plain_text ?? "",
     measurementMethod: page.properties["Measurement Method"]?.rich_text?.[0]?.plain_text ?? "",
     actualIsPercent: page.properties["Actual Is Percent"]?.checkbox ?? false,
-    ownerNotionIds: (page.properties["Owner"]?.people ?? []).map((person: any) => person.id as string),
-    ownerProfiles: [],
+    accountablePageId,
+    accountable: null,
   }
 }
 
@@ -344,62 +296,55 @@ export async function getKpiRecords(): Promise<KpiRecord[]> {
   }
 }
 
-export async function getUsersByNotionIds(ids: string[]): Promise<OwnerProfile[]> {
-  if (ids.length === 0) {
-    return []
-  }
-
-  try {
-    const [directory, userPages] = await Promise.all([
-      getCachedNotionUsers(),
-      getCachedActiveUserPages(),
-    ])
-
-    const directoryById = new Map(directory.map((user) => [user.id, user]))
-    const userPagesByEmail = new Map<string, any>()
-    const userPagesByNotionId = new Map<string, any>()
-
-    for (const page of userPages) {
-      const email = emailProp(prop(page, "Email")).toLowerCase()
-      if (email) {
-        userPagesByEmail.set(email, page)
+export const getUserProfileByPageId = unstable_cache(
+  async (pageId: string): Promise<AccountableProfile | null> => {
+    try {
+      const page = await notion.pages.retrieve({ page_id: pageId })
+      if (!("properties" in page)) {
+        return null
       }
 
-      for (const notionUserId of getPagePeopleIds(page)) {
-        userPagesByNotionId.set(notionUserId, page)
-      }
-    }
+      const props = (page as any).properties
+      const displayName = richText(props["Display Name"])
+      const fullName = titleText(props["Full Name"])
+      const email = emailProp(props["Email"])
+      const functionalRole = selectProp(props["Functional Role"]) || richText(props["Functional Role"])
+      const team = selectProp(props["Team"]) || richText(props["Team"])
+      const active = checkboxProp(props["Active"])
 
-    return Array.from(new Set(ids)).map((notionUserId) => {
-      const directoryEntry = directoryById.get(notionUserId)
-      const matchedPage =
-        userPagesByNotionId.get(notionUserId) ??
-        (directoryEntry?.email ? userPagesByEmail.get(directoryEntry.email.toLowerCase()) : undefined)
-      const mappedPage = matchedPage ? mapOwnerProfileFromPage(matchedPage) : null
+      if (!active || !email) {
+        return null
+      }
 
       return {
-        notionUserId,
-        displayName:
-          mappedPage?.displayName ||
-          directoryEntry?.name ||
-          directoryEntry?.email ||
-          "Unknown User",
-        email: mappedPage?.email || directoryEntry?.email || "",
-        team: mappedPage?.team || "",
-        functionalRole: mappedPage?.functionalRole || "",
+        pageId,
+        displayName: displayName || fullName,
+        fullName,
+        email,
+        functionalRole,
+        team,
         avatarUrl: null,
+        initials: buildInitials(displayName, fullName),
       }
-    })
+    } catch (error) {
+      console.error("[Notion] getUserProfileByPageId error:", error)
+      return null
+    }
+  },
+  ["users-access-profile-by-page-id"],
+  { revalidate: 3600 }
+)
+
+export async function getKpiRecordById(id: string): Promise<KpiRecord | null> {
+  try {
+    const page = await notion.pages.retrieve({ page_id: id })
+    if (!("properties" in page)) {
+      return null
+    }
+    return mapKpiRecord(page)
   } catch (error) {
-    console.error("[Notion] getUsersByNotionIds error:", error)
-    return Array.from(new Set(ids)).map((notionUserId) => ({
-      notionUserId,
-      displayName: "Unknown User",
-      email: "",
-      team: "",
-      functionalRole: "",
-      avatarUrl: null,
-    }))
+    console.error("[Notion] getKpiRecordById error:", error)
+    return null
   }
 }
 
@@ -410,16 +355,16 @@ export async function getKpiEntries(ownerEmail?: string): Promise<KpiEntry[]> {
   }
 
   const normalizedEmail = ownerEmail.toLowerCase()
-  const ownerProfiles = await getUsersByNotionIds(
-    Array.from(new Set(entries.flatMap((entry) => entry.ownerNotionIds)))
-  )
-  const ownerEmailById = new Map(
-    ownerProfiles.map((profile) => [profile.notionUserId, profile.email.toLowerCase()])
+  const enrichedEntries = await Promise.all(
+    entries.map(async (entry) => ({
+      ...entry,
+      accountable: entry.accountablePageId
+        ? await getUserProfileByPageId(entry.accountablePageId)
+        : null,
+    }))
   )
 
-  return entries.filter((entry) =>
-    entry.ownerNotionIds.some((ownerId) => ownerEmailById.get(ownerId) === normalizedEmail)
-  )
+  return enrichedEntries.filter((entry) => entry.accountable?.email.toLowerCase() === normalizedEmail)
 }
 
 export async function updateKpiEntry(
@@ -428,8 +373,6 @@ export async function updateKpiEntry(
     actual: number | null
     notes: string
     status: KpiRecord["status"]
-    unit: string
-    actualIsPercent: boolean
   }>
 ): Promise<void> {
   const properties: Record<string, any> = {}
@@ -444,14 +387,6 @@ export async function updateKpiEntry(
   }
   if (data.status !== undefined) {
     properties["Status"] = { select: { name: data.status } }
-  }
-  if (data.unit !== undefined) {
-    properties["Unit"] = data.unit
-      ? { rich_text: [{ text: { content: data.unit } }] }
-      : { rich_text: [] }
-  }
-  if (data.actualIsPercent !== undefined) {
-    properties["Actual Is Percent"] = { checkbox: data.actualIsPercent }
   }
 
   await notion.pages.update({
