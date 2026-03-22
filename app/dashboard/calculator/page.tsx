@@ -5,12 +5,12 @@ import CalculatorShell from './_components/CalculatorShell'
 export default async function CalculatorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ quote?: string }>
+  searchParams: Promise<{ quote?: string; prefill?: string }>
 }) {
   const session = await auth()
   const isContechBU = session?.user?.profile?.buMembership === 'Contech BU'
   const pricingItems = await getPricingPackages(isContechBU)
-  const { quote: quoteId } = await searchParams
+  const { quote: quoteId, prefill } = await searchParams
   const initialQuote = quoteId ? await getQuoteSession(quoteId) : null
 
   return (
@@ -19,6 +19,7 @@ export default async function CalculatorPage({
       currentUser={session?.user?.profile}
       initialQuoteId={quoteId}
       initialInput={initialQuote?.calculatorInput ?? undefined}
+      initialPrefill={prefill}
     />
   )
 }

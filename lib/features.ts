@@ -4,7 +4,7 @@
   kpi: true,
   revenue: true,
   pipeline: true,
-  chatbot: false,
+  chatbot: true,
 } as const;
 
 export type FeatureKey = keyof typeof FEATURES;

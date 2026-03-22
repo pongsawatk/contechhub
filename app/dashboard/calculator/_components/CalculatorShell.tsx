@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import type { CalculatorInput } from '@/types/calculator'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import type { CalculatorInput, ProductSelection, ServiceSelection, TransformationQuote } from '@/types/calculator'
+import type { CalculatorPrefill } from '@/types/chatbot'
 import type { PricingItem } from '@/types/pricing'
 import type { UserProfile } from '@/types/user'
-import { calculate } from '@/lib/pricing-engine'
+import { calculate, getPackagePrice, itemAppliesTo } from '@/lib/pricing-engine'
 import StepCustomerInfo from './StepCustomerInfo'
 import StepProductSelect from './StepProductSelect'
 import StepPackageConfig from './StepPackageConfig'
@@ -19,6 +20,7 @@ interface CalculatorShellProps {
   currentUser?: UserProfile
   initialQuoteId?: string
   initialInput?: CalculatorInput
+  initialPrefill?: string
 }
 
 type StepKey = 'customer' | 'products' | 'packages' | 'services' | 'offers'
@@ -81,6 +83,194 @@ function createDefaultInput(): CalculatorInput {
   }
 }
 
+function normalizeValue(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function isProductSelectionProduct(value: string): value is ProductSelection['product'] {
+  return value === 'Builk Insite' || value === 'Builk 360' || value === 'Kwanjai'
+}
+
+function createDefaultSelection(
+  product: ProductSelection['product'],
+  twoYearPrepaid: boolean
+): ProductSelection {
+  return {
+    product,
+    packageId: '',
+    packageName: '',
+    packagePrice: 0,
+    packageBilling: 'Annual',
+    packageQuantity: 1,
+    addonIds: [],
+    addons: [],
+    topups: [],
+    enterpriseTier: undefined,
+    enterprisePriceMin: undefined,
+    enterprisePriceMax: undefined,
+    enterpriseAnchorPrice: undefined,
+    mandatoryMode: 'Online',
+    mandatoryFeeWaived: twoYearPrepaid,
+  }
+}
+
+function decodePrefillParam(prefill: string): CalculatorPrefill {
+  const binary = atob(prefill)
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+  const json = new TextDecoder().decode(bytes)
+  return JSON.parse(json) as CalculatorPrefill
+}
+
+function buildTransformationQuote(
+  prefill: CalculatorPrefill,
+  pricingItems: PricingItem[],
+  existingQuote?: TransformationQuote
+): TransformationQuote | undefined {
+  const normalizedServices = prefill.services ?? []
+  const mappedServices: ServiceSelection[] = normalizedServices
+    .map((service) => {
+      const match = pricingItems.find((item) => {
+        const isServiceType =
+          item.type === 'Service' ||
+          item.type === 'Transformation Service' ||
+          item.isInfrastructure
+        return isServiceType && normalizeValue(item.packageName) === normalizeValue(service.itemName)
+      })
+
+      if (!match) return null
+
+      return {
+        itemId: match.id,
+        itemName: match.packageName,
+        quantity: Math.max(1, service.quantity || 1),
+        unitPrice: match.price,
+        billing: match.billing,
+        taskNote: service.taskNote ?? '',
+      }
+    })
+    .filter((service): service is ServiceSelection => Boolean(service))
+
+  if (!prefill.engagementModel && mappedServices.length === 0 && !existingQuote) {
+    return undefined
+  }
+
+  return {
+    projectName: existingQuote?.projectName ?? '',
+    engagementModel:
+      prefill.engagementModel === 'quick-win' ||
+      prefill.engagementModel === 'project' ||
+      prefill.engagementModel === 'program'
+        ? prefill.engagementModel
+        : existingQuote?.engagementModel ?? '',
+    services: mappedServices.length > 0 ? mappedServices : existingQuote?.services ?? [],
+  }
+}
+
+function applyPrefillToInput(
+  baseInput: CalculatorInput,
+  prefill: CalculatorPrefill,
+  pricingItems: PricingItem[]
+): CalculatorInput {
+  const nextInput: CalculatorInput = {
+    ...baseInput,
+    customerName: prefill.customerName ?? baseInput.customerName,
+    lane: prefill.lane ?? baseInput.lane,
+    twoYearPrepaid: prefill.kickstarter ?? baseInput.twoYearPrepaid,
+  }
+
+  const packageItem =
+    prefill.packageName
+      ? pricingItems.find(
+          (item) =>
+            item.type === 'Package' &&
+            normalizeValue(item.packageName) === normalizeValue(prefill.packageName ?? '')
+        )
+      : undefined
+
+  const requestedProducts = Array.from(
+    new Set([
+      ...(prefill.products ?? []),
+      ...(packageItem?.product ? [packageItem.product] : []),
+    ])
+  ).filter(isProductSelectionProduct)
+
+  const selectionMap = new Map<ProductSelection['product'], ProductSelection>(
+    nextInput.selections.map((selection) => [selection.product, { ...selection }])
+  )
+
+  for (const product of requestedProducts) {
+    if (!selectionMap.has(product)) {
+      selectionMap.set(product, createDefaultSelection(product, nextInput.twoYearPrepaid))
+    }
+  }
+
+  if (packageItem && isProductSelectionProduct(packageItem.product)) {
+    const currentSelection =
+      selectionMap.get(packageItem.product) ??
+      createDefaultSelection(packageItem.product, nextInput.twoYearPrepaid)
+    const price = getPackagePrice(packageItem)
+
+    selectionMap.set(packageItem.product, {
+      ...currentSelection,
+      packageId: packageItem.id,
+      packageName: packageItem.packageName,
+      packagePrice: price.base,
+      packageBilling: packageItem.billing || currentSelection.packageBilling,
+      packageQuantity: currentSelection.packageQuantity ?? 1,
+      enterpriseTier:
+        packageItem.enterprisePriceMin !== null && packageItem.enterprisePriceMin !== undefined
+          ? currentSelection.enterpriseTier ?? 'base'
+          : undefined,
+      enterprisePriceMin: packageItem.enterprisePriceMin,
+      enterprisePriceMax: packageItem.enterprisePriceMax,
+      enterpriseAnchorPrice: packageItem.enterpriseAnchorPrice,
+      addonIds: [],
+      addons: [],
+      topups: [],
+      mandatoryFeeWaived: nextInput.twoYearPrepaid,
+    })
+  }
+
+  if ((prefill.addons ?? []).length > 0) {
+    const addonNames = new Set((prefill.addons ?? []).map(normalizeValue))
+
+    for (const [product, selection] of selectionMap.entries()) {
+      const matchedAddons = pricingItems
+        .filter((item) => {
+          if (item.product !== product || item.type !== 'Add-on') return false
+          if (!addonNames.has(normalizeValue(item.packageName))) return false
+          return selection.packageName ? itemAppliesTo(item, selection.packageName) : true
+        })
+        .map((item) => ({
+          id: item.id,
+          name: item.packageName,
+          price: item.price,
+          billing: item.billing || 'Annual',
+        }))
+
+      if (matchedAddons.length > 0) {
+        selectionMap.set(product, {
+          ...selection,
+          addonIds: matchedAddons.map((addon) => addon.id),
+          addons: matchedAddons,
+        })
+      }
+    }
+  }
+
+  nextInput.selections = Array.from(selectionMap.values()).map((selection) => ({
+    ...selection,
+    mandatoryFeeWaived: nextInput.twoYearPrepaid,
+  }))
+
+  const transformationQuote = buildTransformationQuote(prefill, pricingItems, nextInput.transformationQuote)
+  if (transformationQuote) {
+    nextInput.transformationQuote = transformationQuote
+  }
+
+  return nextInput
+}
+
 function getStartingStep(input: CalculatorInput): number {
   const steps = getSteps(input)
   return steps.find((stepDef) => !isStepComplete(stepDef.key, input))?.id ?? steps[steps.length - 1]?.id ?? 1
@@ -91,14 +281,17 @@ export default function CalculatorShell({
   currentUser,
   initialQuoteId,
   initialInput,
+  initialPrefill,
 }: CalculatorShellProps) {
   const hydratedInput = initialInput ?? createDefaultInput()
   const [step, setStep] = useState(() => getStartingStep(hydratedInput))
   const [input, setInput] = useState<CalculatorInput>(hydratedInput)
   const [isSaving, setIsSaving] = useState(false)
+  const [prefillNotice, setPrefillNotice] = useState<string | null>(null)
   const [savedQuoteId, setSavedQuoteId] = useState<string | null>(
     initialInput ? (initialQuoteId ?? null) : null
   )
+  const hasAppliedPrefillRef = useRef(false)
 
   const steps = getSteps(input)
   const maxStep = steps.length
@@ -119,6 +312,22 @@ export default function CalculatorShell({
       return next
     })
   }, [])
+
+  useEffect(() => {
+    if (!initialPrefill || hasAppliedPrefillRef.current) return
+
+    hasAppliedPrefillRef.current = true
+
+    try {
+      const prefill = decodePrefillParam(initialPrefill)
+      setInput((prev) => applyPrefillToInput(prev, prefill, pricingItems))
+      setSavedQuoteId(null)
+      setStep(2)
+      setPrefillNotice('Loaded chat details into this calculator.')
+    } catch (error) {
+      console.error('[Calculator] Invalid chatbot prefill:', error)
+    }
+  }, [initialPrefill, pricingItems])
 
   // When product selections change dynamically, step state handles component transitions cleanly.
   // Step product selections remain isolated on Step 2.
@@ -175,6 +384,18 @@ export default function CalculatorShell({
             <p className="text-white/45 text-sm mt-1">
               Build a quote with live pricing, one-time fees, and package offers.
             </p>
+            {prefillNotice && (
+              <div
+                className="mt-3 inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium"
+                style={{
+                  background: 'rgba(250, 204, 21, 0.12)',
+                  border: '1px solid rgba(250, 204, 21, 0.28)',
+                  color: '#fde68a',
+                }}
+              >
+                {prefillNotice}
+              </div>
+            )}
           </div>
 
           {/* Step progress bar */}
