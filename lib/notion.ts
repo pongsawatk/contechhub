@@ -278,9 +278,9 @@ function mapKpiRecord(page: any): KpiRecord {
     achievementPercent,
     status: selectProp(prop(page, "Status")) as KpiRecord["status"],
     notes: richText(prop(page, "Notes")),
-    unit: page.properties["Unit"]?.rich_text?.[0]?.plain_text ?? "",
-    measurementMethod: page.properties["Measurement Method"]?.rich_text?.[0]?.plain_text ?? "",
-    actualIsPercent: page.properties["Actual Is Percent"]?.checkbox ?? false,
+    unit: selectProp(prop(page, "Unit")) || richText(prop(page, "Unit")),
+    measurementMethod: selectProp(prop(page, "Measurement Method")) || richText(prop(page, "Measurement Method")),
+    actualIsPercent: prop(page, "Actual Is Percent")?.checkbox ?? false,
     accountablePageId,
     accountable: null,
   }
@@ -316,6 +316,13 @@ export const getUserProfileByPageId = unstable_cache(
         return null
       }
 
+      const avatarUrl =
+        props["Avatar"]?.files?.[0]?.file?.url ||
+        props["Avatar"]?.files?.[0]?.external?.url ||
+        props["Profile Picture"]?.files?.[0]?.file?.url ||
+        props["Profile Picture"]?.files?.[0]?.external?.url ||
+        null;
+
       return {
         pageId,
         displayName: displayName || fullName,
@@ -323,7 +330,7 @@ export const getUserProfileByPageId = unstable_cache(
         email,
         functionalRole,
         team,
-        avatarUrl: null,
+        avatarUrl,
         initials: buildInitials(displayName, fullName),
       }
     } catch (error) {
