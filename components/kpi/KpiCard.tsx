@@ -37,11 +37,23 @@ function formatValue(value: number | null, unit: string, isPercent: boolean): st
   return `${value.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`
 }
 
+function formatPeriodStart(periodStart: string | null): string {
+  if (!periodStart) return "ไม่ระบุวันเริ่ม"
+
+  return new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(periodStart))
+}
+
 export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps) {
   const statusStyle = STATUS_STYLES[entry.status]
   const progressWidth = Math.max(0, Math.min(entry.achievementPercent ?? 0, 100))
   const isOverTarget = (entry.achievementPercent ?? 0) > 100
   const accountable = entry.accountable
+  const targetLabel = formatValue(entry.target, entry.unit, false)
+  const actualLabel = formatValue(entry.actual, entry.unit, entry.actualIsPercent)
 
   return (
     <div
@@ -52,9 +64,10 @@ export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex min-w-0 items-start gap-3 rounded-2xl border border-emerald-400/12 bg-emerald-400/[0.05] px-3 py-2">
           <AccountableAvatar profile={accountable} size="md" />
           <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-200/70">Accountable</p>
             <p className="truncate text-sm font-medium text-white">
               {accountable?.displayName ?? "ไม่ระบุ Accountable"}
             </p>
@@ -63,6 +76,7 @@ export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps
             </p>
           </div>
         </div>
+
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-white/60">
             {entry.team}
@@ -84,7 +98,7 @@ export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
           <p className="text-xs text-white/45">เป้าหมาย</p>
           <p className="mt-2 text-base font-semibold text-white tabular-nums">
-            {formatValue(entry.target, entry.unit, false)}
+            {targetLabel}
           </p>
           <p className="mt-1 text-xs text-white/35">{entry.unit || " "}</p>
         </div>
@@ -92,7 +106,7 @@ export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
           <p className="text-xs text-white/45">ผลจริง</p>
           <p className="mt-2 text-base font-semibold text-white tabular-nums">
-            {formatValue(entry.actual, entry.unit, entry.actualIsPercent)}
+            {actualLabel}
           </p>
           <p className="mt-1 text-xs text-white/35">
             {entry.actualIsPercent || entry.unit === "%" ? "%" : entry.unit || " "}
@@ -108,6 +122,7 @@ export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps
               </span>
             )}
           </div>
+          <p className="mt-2 text-[11px] text-white/40">เทียบเป้าหมาย {targetLabel}</p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
             <div
               className={`h-full rounded-full bg-gradient-to-r ${statusStyle.bar}`}
@@ -121,9 +136,12 @@ export default function KpiCard({ entry, canEdit, isMine, onEdit }: KpiCardProps
       </div>
 
       <div className="mt-auto flex items-center justify-between gap-3 text-sm text-white/45">
-        <p className="truncate">
-          {entry.period} / {entry.kpiType}
-        </p>
+        <div className="min-w-0">
+          <p className="truncate">{entry.period} / {entry.kpiType}</p>
+          <p className="mt-1 truncate text-xs text-white/35">
+            Period Start: {formatPeriodStart(entry.periodStart)}
+          </p>
+        </div>
         {canEdit && (
           <button
             className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-200 transition-colors hover:border-emerald-300/30 hover:bg-emerald-400/15"

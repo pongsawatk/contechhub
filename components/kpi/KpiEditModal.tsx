@@ -18,6 +18,24 @@ function getActualLabel(entry: KpiRecord) {
   return entry.unit ? `ผลจริง (${entry.unit})` : "ผลจริง"
 }
 
+function formatValue(value: number | null, unit: string, isPercent: boolean): string {
+  if (value === null) return "-"
+  if (isPercent || unit === "%") return `${value}%`
+  if (unit === "THB") return `฿${value.toLocaleString("th-TH")}`
+  if (unit === "x") return `${value}x`
+  return `${value.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`
+}
+
+function formatPeriodStart(periodStart: string | null): string {
+  if (!periodStart) return "ไม่ระบุวันเริ่ม"
+
+  return new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(periodStart))
+}
+
 export default function KpiEditModal({ entry, open, onClose, onSaved }: KpiEditModalProps) {
   const [actual, setActual] = useState("")
   const [status, setStatus] = useState<KpiRecord["status"]>("On Track")
@@ -114,6 +132,19 @@ export default function KpiEditModal({ entry, open, onClose, onSaved }: KpiEditM
           </button>
         </div>
 
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="text-xs text-white/45">Target</div>
+            <div className="mt-1 text-sm font-medium text-white tabular-nums">
+              {formatValue(currentEntry.target, currentEntry.unit, false)}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="text-xs text-white/45">Period Start</div>
+            <div className="mt-1 text-sm font-medium text-white">{formatPeriodStart(currentEntry.periodStart)}</div>
+          </div>
+        </div>
+
         <div className="mt-6 space-y-4">
           {error && (
             <div className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
@@ -130,12 +161,15 @@ export default function KpiEditModal({ entry, open, onClose, onSaved }: KpiEditM
               value={actual}
               onChange={(event) => setActual(event.target.value)}
             />
+            <p className="mt-2 text-xs text-white/40">
+              เป้าหมายปัจจุบัน: {formatValue(currentEntry.target, currentEntry.unit, false)}
+            </p>
           </div>
 
           <div>
             <label className="mb-2 block text-sm text-white/60">Achievement %</label>
             <div className="glass-input flex min-h-12 items-center px-4 py-3 text-base text-white/80 tabular-nums">
-              {liveAchievement === null ? "—" : `${liveAchievement}%`}
+              {liveAchievement === null ? "-" : `${liveAchievement}%`}
             </div>
           </div>
 
