@@ -1,12 +1,15 @@
-﻿import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
+import { hasAuthenticatedUser, hasBuAccess } from "@/lib/api-auth"
 import { getSalesOrders, findSalesOrder, createSalesOrder, updateSalesOrder, findOrCreateCustomer, findCustomerByName, findHotQuotationByNo } from "@/lib/notion"
 import type { ParsedSalesOrder } from "@/types/pipeline"
 
 export async function GET() {
   try {
     const session = await auth()
-    if (!session?.user?.email) return NextResponse.json({ error: "ไม่ได้เข้าสู่ระบบ" }, { status: 401 })
+    if (!hasAuthenticatedUser(session)) return NextResponse.json({ error: "ไม่ได้เข้าสู่ระบบ" }, { status: 401 })
+    if (!hasBuAccess(session)) return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 })
+
     const data = await getSalesOrders()
     return NextResponse.json(data)
   } catch (error) {
@@ -18,9 +21,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth()
-    if (!session?.user?.email) return NextResponse.json({ error: "ไม่ได้เข้าสู่ระบบ" }, { status: 401 })
-    const appRole = session.user?.profile?.appRole
-    if (appRole !== "admin" && appRole !== "bu_member") return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 })
+    if (!hasAuthenticatedUser(session)) return NextResponse.json({ error: "ไม่ได้เข้าสู่ระบบ" }, { status: 401 })
+    if (!hasBuAccess(session)) return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 })
 
     const body: { rows: ParsedSalesOrder[]; importBatch: string; skipKeys: string[]; autoCreate: boolean } = await request.json()
     let created = 0; let updated = 0; let skipped = 0

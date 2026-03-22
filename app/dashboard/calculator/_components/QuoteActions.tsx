@@ -32,8 +32,10 @@ export default function QuoteActions({
   onSave,
 }: QuoteActionsProps) {
   const [copied, setCopied] = useState(false)
+  const hasQuoteContent =
+    input.selections.length > 0 || (input.transformationQuote?.services.length ?? 0) > 0
 
-  const isDisabled = !input.customerName || input.selections.length === 0
+  const isDisabled = !input.customerName || !hasQuoteContent
   const today = new Date().toLocaleDateString('th-TH', {
     year: 'numeric',
     month: 'long',

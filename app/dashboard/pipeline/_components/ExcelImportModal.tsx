@@ -1,6 +1,7 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
-import { useState, useRef, useCallback } from "react"
+
+import { useState, useRef } from "react"
 import type { Customer, ParsedRow, ParsedHotQuotation, ParsedSalesOrder } from "@/types/pipeline"
 import { parseHotQuotation, parseSalesOrder } from "@/lib/excel-parser"
 import ImportPreviewTable from "./ImportPreviewTable"
@@ -32,7 +33,7 @@ export default function ExcelImportModal({ type, existingKeys, customers, onClos
   const [parseError, setParseError] = useState("")
   const customerNames = new Set(customers.map((c) => c.companyName))
 
-  const handleFile = useCallback(async (f: File) => {
+  async function handleFile(f: File) {
     setFile(f)
     setParseError("")
     try {
@@ -57,7 +58,8 @@ export default function ExcelImportModal({ type, existingKeys, customers, onClos
     } catch (e) {
       setParseError("ไม่สามารถอ่านไฟล์ได้: " + String(e))
     }
-  }, [type, existingKeys, customerNames])
+  }
+
   async function handleImport() {
     setStep("importing")
     setProgress(10)

@@ -18,6 +18,7 @@ interface CalculatorShellProps {
   pricingItems: PricingItem[]
   currentUser?: UserProfile
   initialQuoteId?: string
+  initialInput?: CalculatorInput
 }
 
 type StepKey = 'customer' | 'products' | 'packages' | 'services' | 'offers'
@@ -69,21 +70,35 @@ function isStepComplete(stepKey: StepKey, input: CalculatorInput): boolean {
   return true
 }
 
-export default function CalculatorShell({
-  pricingItems,
-  currentUser,
-}: CalculatorShellProps) {
-  const [step, setStep] = useState(1)
-  const [input, setInput] = useState<CalculatorInput>({
+function createDefaultInput(): CalculatorInput {
+  return {
     customerName: '',
     lane: 'Biz',
     selections: [],
     discountPercent: 0,
     discountReason: '',
     twoYearPrepaid: false,
-  })
+  }
+}
+
+function getStartingStep(input: CalculatorInput): number {
+  const steps = getSteps(input)
+  return steps.find((stepDef) => !isStepComplete(stepDef.key, input))?.id ?? steps[steps.length - 1]?.id ?? 1
+}
+
+export default function CalculatorShell({
+  pricingItems,
+  currentUser,
+  initialQuoteId,
+  initialInput,
+}: CalculatorShellProps) {
+  const hydratedInput = initialInput ?? createDefaultInput()
+  const [step, setStep] = useState(() => getStartingStep(hydratedInput))
+  const [input, setInput] = useState<CalculatorInput>(hydratedInput)
   const [isSaving, setIsSaving] = useState(false)
-  const [savedQuoteId, setSavedQuoteId] = useState<string | null>(null)
+  const [savedQuoteId, setSavedQuoteId] = useState<string | null>(
+    initialInput ? (initialQuoteId ?? null) : null
+  )
 
   const steps = getSteps(input)
   const maxStep = steps.length
@@ -206,7 +221,7 @@ export default function CalculatorShell({
                           : 'rgba(255,255,255,0.08)',
                       }}
                     >
-                      {isComplete ? '✓' : stepItem.id}
+                      {isComplete ? 'OK' : stepItem.id}
                     </span>
                     <span>{stepItem.label}</span>
                   </button>
@@ -268,7 +283,7 @@ export default function CalculatorShell({
                 cursor: step === 1 ? 'not-allowed' : 'pointer',
               }}
             >
-              ← Back
+              Back
             </button>
 
             {step < maxStep ? (
@@ -287,7 +302,7 @@ export default function CalculatorShell({
                   cursor: canNext ? 'pointer' : 'not-allowed',
                 }}
               >
-                Next →
+                Next
               </button>
             ) : (
               <div />

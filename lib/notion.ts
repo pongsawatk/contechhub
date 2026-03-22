@@ -1,14 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Client } from "@notionhq/client"
+import type { CalculatorInput, PriceBreakdown } from "@/types/calculator"
 import type { UserProfile } from "@/types/user"
 import type { PricingItem } from "@/types/pricing"
 import type { KpiEntry } from "@/types/kpi"
 import type { RevenueEntry } from "@/types/revenue"
 import type { Customer, HotQuotation, SalesOrder } from "@/types/pipeline"
+import type { QuoteSessionRecord, StoredQuoteState } from "@/types/quote"
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN, notionVersion: "2026-03-11" })
+const QUOTE_STATE_MARKER = "CONTECH_QUOTE_STATE_V1:"
 
 function prop(page: any, name: string): any { return page.properties?.[name] }
+function propAny(page: any, names: string[]): any {
+  for (const name of names) {
+    if (page.properties?.[name] !== undefined) {
+      return page.properties[name]
+    }
+  }
+  return undefined
+}
 function richText(p: any): string { return p?.rich_text?.map((t: any) => t.plain_text).join("") ?? "" }
 function titleText(p: any): string { return p?.title?.map((t: any) => t.plain_text).join("") ?? "" }
 function emailProp(p: any): string { return p?.email ?? "" }
@@ -42,6 +53,33 @@ async function findNotionUserByName(name: string): Promise<string | null> {
   }
 }
 function dateProp(p: any): string | null { return p?.date?.start ?? null }
+function splitRichText(content: string, chunkSize = 1800): Array<{ type: "text"; text: { content: string } }> {
+  if (!content) return [{ type: "text", text: { content: "" } }]
+  const chunks = content.match(new RegExp(`[\\s\\S]{1,${chunkSize}}`, "g")) ?? [content]
+  return chunks.map((chunk) => ({ type: "text", text: { content: chunk } }))
+}
+function getBlockPlainText(block: any): string {
+  const blockData = block?.[block?.type]
+  const richTextItems = Array.isArray(blockData?.rich_text) ? blockData.rich_text : []
+  return richTextItems.map((item: any) => item.plain_text ?? item.text?.content ?? "").join("")
+}
+function buildQuoteProducts(input: CalculatorInput): string[] {
+  const products = input.selections.map((selection) => selection.product) as string[]
+  if (input.transformationQuote) {
+    products.push("Transformation Service")
+  }
+  return Array.from(new Set(products))
+}
+function isStoredQuoteState(value: unknown): value is StoredQuoteState {
+  if (!value || typeof value !== "object") return false
+  const input = (value as StoredQuoteState).input
+  return Boolean(
+    input &&
+    typeof input.customerName === "string" &&
+    typeof input.lane === "string" &&
+    Array.isArray(input.selections)
+  )
+}
 export async function getUserProfile(email: string): Promise<UserProfile | null> {
   try {
     const response = await notion.dataSources.query({
@@ -178,17 +216,17 @@ export async function getRevenueEntries(month?: string): Promise<RevenueEntry[]>
       month: selectProp(prop(page, "Month")),
       revenueType: selectProp(prop(page, "Revenue Type")) || richText(prop(page, "Revenue Type")),
       lane: selectProp(prop(page, "Lane")) as RevenueEntry["lane"],
-      bookingAmount: numberProp(prop(page, "Booking Amount")),
-      recognizedAmount: numberProp(prop(page, "Recognized Amount")),
+      bookingAmount: numberProp(propAny(page, ["Booking Amount (THB)", "Booking Amount"])),
+      recognizedAmount: numberProp(propAny(page, ["Recognized Amount (THB)", "Recognized Amount"])),
       recognitionStatus: selectProp(prop(page, "Recognition Status")),
       ownerName: peopleName(prop(page, "Owner")),
       ownerEmail: peopleEmail(prop(page, "Owner")),
       customerName: richText(prop(page, "Customer Name")),
-      goLiveDate: dateProp(prop(page, "Go-Live Date")),
+      goLiveDate: dateProp(propAny(page, ["Go-live Date", "Go-Live Date"])),
       contractStart: dateProp(prop(page, "Contract Start")),
       contractEnd: dateProp(prop(page, "Contract End")),
       monthLocked: checkboxProp(prop(page, "Month Locked")),
-      note: richText(prop(page, "Note")),
+      note: richText(propAny(page, ["Note / Blocker", "Note"])),
     }))
   } catch (error) {
     console.error("[Notion] getRevenueEntries error:", error)
@@ -205,14 +243,14 @@ export async function createRevenueEntry(
       "Month": { select: { name: data.month } },
       "Revenue Type": { select: { name: data.revenueType } },
       "Lane": data.lane ? { select: { name: data.lane } } : {},
-      "Booking Amount": { number: data.bookingAmount },
-      "Recognized Amount": { number: data.recognizedAmount },
+      "Booking Amount (THB)": { number: data.bookingAmount },
+      "Recognized Amount (THB)": { number: data.recognizedAmount },
       "Recognition Status": data.recognitionStatus ? { select: { name: data.recognitionStatus } } : {},
       "Customer Name": { rich_text: [{ text: { content: data.customerName } }] },
-      "Go-Live Date": data.goLiveDate ? { date: { start: data.goLiveDate } } : {},
+      "Go-live Date": data.goLiveDate ? { date: { start: data.goLiveDate } } : {},
       "Contract Start": data.contractStart ? { date: { start: data.contractStart } } : {},
       "Contract End": data.contractEnd ? { date: { start: data.contractEnd } } : {},
-      "Note": { rich_text: [{ text: { content: data.note } }] },
+      "Note / Blocker": { rich_text: [{ text: { content: data.note } }] },
     } as any,
   })
   return page.id
@@ -231,22 +269,22 @@ export async function updateRevenueEntry(
   if (data.lane !== undefined)
     properties["Lane"] = data.lane ? { select: { name: data.lane } } : {}
   if (data.bookingAmount !== undefined)
-    properties["Booking Amount"] = { number: data.bookingAmount }
+    properties["Booking Amount (THB)"] = { number: data.bookingAmount }
   if (data.recognizedAmount !== undefined)
-    properties["Recognized Amount"] = { number: data.recognizedAmount }
+    properties["Recognized Amount (THB)"] = { number: data.recognizedAmount }
   if (data.recognitionStatus !== undefined)
     properties["Recognition Status"] = data.recognitionStatus
       ? { select: { name: data.recognitionStatus } } : {}
   if (data.customerName !== undefined)
     properties["Customer Name"] = { rich_text: [{ text: { content: data.customerName } }] }
   if (data.goLiveDate !== undefined)
-    properties["Go-Live Date"] = data.goLiveDate ? { date: { start: data.goLiveDate } } : {}
+    properties["Go-live Date"] = data.goLiveDate ? { date: { start: data.goLiveDate } } : {}
   if (data.contractStart !== undefined)
     properties["Contract Start"] = data.contractStart ? { date: { start: data.contractStart } } : {}
   if (data.contractEnd !== undefined)
     properties["Contract End"] = data.contractEnd ? { date: { start: data.contractEnd } } : {}
   if (data.note !== undefined)
-    properties["Note"] = { rich_text: [{ text: { content: data.note } }] }
+    properties["Note / Blocker"] = { rich_text: [{ text: { content: data.note } }] }
   await notion.pages.update({ page_id: id, properties })
 }
 
@@ -267,6 +305,158 @@ export async function isMonthLocked(month: string): Promise<boolean> {
   }
 }
 // ── Pipeline: Customer Master ─────────────────────────────────────────
+
+export async function createQuoteSession(data: {
+  input: CalculatorInput
+  breakdown: PriceBreakdown
+}): Promise<{ quoteId: string; quoteName: string }> {
+  const products = buildQuoteProducts(data.input)
+  const productList = products.join(" + ") || "Transformation Service"
+  const quoteName = `${data.input.customerName} - ${productList}`
+  const summaryJson = JSON.stringify({
+    version: 1,
+    lane: data.input.lane,
+    products,
+    annualTotal: data.breakdown.annualTotal,
+    oneTimeTotal: data.breakdown.oneTimeTotal,
+    finalPrice: data.breakdown.total,
+    approvalRequired: data.breakdown.approvalRequired,
+    hasTransformation: Boolean(data.input.transformationQuote),
+  })
+  const storedState: StoredQuoteState = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    input: data.input,
+  }
+
+  const page = await notion.pages.create({
+    parent: { database_id: process.env.NOTION_QUOTES_DB_ID! },
+    properties: {
+      "Quote Name": {
+        title: [{ text: { content: quoteName } }],
+      },
+      "Customer Name": {
+        rich_text: [{ text: { content: data.input.customerName } }],
+      },
+      "Lane": {
+        select: { name: data.input.lane },
+      },
+      "Input Mode": {
+        select: { name: "Form" },
+      },
+      "Products Selected": {
+        multi_select: products.map((product) => ({ name: product })),
+      },
+      "Base Price (THB)": {
+        number: data.breakdown.subtotal,
+      },
+      "Add-on Price (THB)": {
+        number: 0,
+      },
+      "Discount (THB)": {
+        number: data.breakdown.discountAmount,
+      },
+      "Final Price (THB)": {
+        number: data.breakdown.total,
+      },
+      "Discount Reason": {
+        rich_text: [{ text: { content: data.input.discountReason || "" } }],
+      },
+      "Approval Required": {
+        checkbox: data.breakdown.approvalRequired,
+      },
+      "Status": {
+        select: { name: "Draft" },
+      },
+      "Quote Summary (JSON)": {
+        rich_text: splitRichText(summaryJson),
+      },
+      "Notes": {
+        rich_text: [
+          {
+            text: {
+              content: data.input.twoYearPrepaid ? "Kickstarter 2-year prepaid" : "",
+            },
+          },
+        ],
+      },
+    } as any,
+  })
+
+  await notion.blocks.children.append({
+    block_id: page.id,
+    children: [
+      {
+        object: "block",
+        type: "code",
+        code: {
+          language: "json",
+          rich_text: splitRichText(`${QUOTE_STATE_MARKER}${JSON.stringify(storedState)}`),
+        },
+      },
+    ] as any,
+  })
+
+  return { quoteId: page.id, quoteName }
+}
+
+export async function getQuoteSession(id: string): Promise<QuoteSessionRecord | null> {
+  try {
+    const page = await notion.pages.retrieve({ page_id: id })
+    if (!("properties" in page)) {
+      return null
+    }
+
+    const parentId = (page as any)?.parent?.data_source_id ?? (page as any)?.parent?.database_id
+    if (parentId !== process.env.NOTION_QUOTES_DB_ID) {
+      return null
+    }
+
+    const blocks = await notion.blocks.children.list({ block_id: id, page_size: 100 })
+    let calculatorInput: CalculatorInput | null = null
+
+    for (const block of blocks.results as any[]) {
+      const plainText = getBlockPlainText(block)
+      if (!plainText.startsWith(QUOTE_STATE_MARKER)) {
+        continue
+      }
+      const parsed = JSON.parse(plainText.slice(QUOTE_STATE_MARKER.length))
+      if (isStoredQuoteState(parsed)) {
+        calculatorInput = parsed.input
+      }
+      break
+    }
+
+    if (!calculatorInput) {
+      const fallbackSummary = richText(prop(page, "Quote Summary (JSON)"))
+      if (fallbackSummary) {
+        try {
+          const parsed = JSON.parse(fallbackSummary)
+          if (isStoredQuoteState(parsed)) {
+            calculatorInput = parsed.input
+          }
+        } catch {
+          // Older records stored summary only, so client hydration remains unavailable for them.
+        }
+      }
+    }
+
+    return {
+      id: page.id,
+      quoteName: titleText(prop(page, "Quote Name")),
+      customerName: richText(prop(page, "Customer Name")),
+      lane: selectProp(prop(page, "Lane")) || "Biz",
+      status: selectProp(prop(page, "Status")) || "Draft",
+      finalPrice: numberProp(prop(page, "Final Price (THB)")),
+      summaryJson: richText(prop(page, "Quote Summary (JSON)")),
+      approvalRequired: checkboxProp(prop(page, "Approval Required")),
+      calculatorInput,
+    }
+  } catch (error) {
+    console.error("[Notion] getQuoteSession error:", error)
+    return null
+  }
+}
 
 export async function getCustomers(): Promise<Customer[]> {
   try {
