@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type CSSProperties } from "react"
 import type { AccountableProfile, KpiRecord } from "@/types/kpi"
 import AccountableAvatar from "@/components/kpi/AccountableAvatar"
 import KpiCard from "@/components/kpi/KpiCard"
@@ -10,6 +10,40 @@ interface Props {
   appRole: string
   userEmail: string
 }
+
+const TEAM_ORDER = ["BU (Jor)", "Acquisition", "Retention", "Innovation"] as const
+const BU_MAX_CARDS = 3
+
+const LANE_CONFIG = {
+  "BU (Jor)": {
+    label: "BU",
+    borderColor: "border-l-gray-400",
+    bgColor: "bg-gray-400/10",
+    textColor: "text-gray-300",
+    countColor: "text-gray-400",
+  },
+  Acquisition: {
+    label: "Acquisition",
+    borderColor: "border-l-blue-400",
+    bgColor: "bg-blue-400/5",
+    textColor: "text-blue-300",
+    countColor: "text-blue-400",
+  },
+  Retention: {
+    label: "Retention",
+    borderColor: "border-l-green-400",
+    bgColor: "bg-green-400/5",
+    textColor: "text-green-300",
+    countColor: "text-green-400",
+  },
+  Innovation: {
+    label: "Innovation",
+    borderColor: "border-l-purple-400",
+    bgColor: "bg-purple-400/5",
+    textColor: "text-purple-300",
+    countColor: "text-purple-400",
+  },
+} as const
 
 function KpiSummarySkeleton() {
   return (
@@ -45,6 +79,31 @@ function KpiCardSkeleton() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function LaneSectionHeader({
+  team,
+  count,
+}: {
+  team: keyof typeof LANE_CONFIG
+  count: number
+}) {
+  const config = LANE_CONFIG[team]
+
+  return (
+    <div className={`mb-3 flex items-center gap-3 border-l-2 pl-3 ${config.borderColor}`}>
+      <span className={`text-sm font-semibold ${config.textColor}`}>{config.label}</span>
+      <span className={`text-xs tabular-nums ${config.countColor}`}>· {count} KPI</span>
+    </div>
+  )
+}
+
+function EmptyLane({ team }: { team: keyof typeof LANE_CONFIG }) {
+  return (
+    <div className="rounded-xl border border-dashed border-white/10 p-6 text-center">
+      <span className="text-xs text-white/25">ไม่มี KPI ใน {LANE_CONFIG[team].label}</span>
     </div>
   )
 }
@@ -121,11 +180,35 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
     return teamOk && personOk && mineOk
   })
 
+  const isGroupedMode = selectedTeam === "All"
+  const activeRecords = filtered.filter((record) => !record.kpiName.startsWith("[หมดอายุ]"))
+  const groupedByTeam = TEAM_ORDER.reduce(
+    (acc, team) => {
+      acc[team] = activeRecords.filter((record) => record.team === team)
+      return acc
+    },
+    {} as Record<(typeof TEAM_ORDER)[number], KpiRecord[]>
+  )
+
   const counts = {
     onTrack: filtered.filter((record) => record.status === "On Track").length,
     atRisk: filtered.filter((record) => record.status === "At Risk").length,
     offTrack: filtered.filter((record) => record.status === "Off Track").length,
     completed: filtered.filter((record) => record.status === "Completed").length,
+  }
+
+  const renderCard = (record: KpiRecord) => {
+    const isMine = record.accountable?.email.toLowerCase() === sessionEmail
+
+    return (
+      <KpiCard
+        key={record.id}
+        canEdit={isAdmin || isMine}
+        entry={record}
+        isMine={Boolean(isMine)}
+        onEdit={() => setEditingRecord(record)}
+      />
+    )
   }
 
   return (
@@ -134,7 +217,9 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-white">KPI Dashboard</h1>
-            <p className="mt-1 text-sm text-white/50">ติดตาม KPI ที่ผูกกับ Accountable จาก Users & Access</p>
+            <p className="mt-1 text-sm text-white/50">
+              ติดตาม KPI ที่ผูกกับ Accountable จาก Users & Access
+            </p>
           </div>
           {refreshing && <p className="text-xs text-white/40">กำลังรีเฟรชข้อมูลล่าสุด...</p>}
         </div>
@@ -171,11 +256,7 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
             >
               {selectedAccountable ? (
                 <>
-                  <AccountableAvatar
-                    profile={selectedAccountable}
-                    showTooltip={false}
-                    size="sm"
-                  />
+                  <AccountableAvatar profile={selectedAccountable} showTooltip={false} size="sm" />
                   <span className="max-w-[80px] truncate text-white">
                     {selectedAccountable.displayName}
                   </span>
@@ -230,11 +311,7 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
                         setPersonOpen(false)
                       }}
                     >
-                      <AccountableAvatar
-                        profile={profile}
-                        showTooltip={false}
-                        size="sm"
-                      />
+                      <AccountableAvatar profile={profile} showTooltip={false} size="sm" />
                       <span className="truncate">{profile.displayName}</span>
                       <span className="ml-auto text-xs text-white/30">
                         {profile.functionalRole?.split(" ")[0] ?? ""}
@@ -286,26 +363,54 @@ export default function KpiDisplay({ appRole, userEmail }: Props) {
               <KpiCardSkeleton key={index} />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : activeRecords.length === 0 ? (
           <div className="glass-card rounded-2xl p-10 text-center text-sm text-white/50">
             ไม่พบ KPI ที่ตรงกับเงื่อนไขที่เลือก
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((record) => {
-              const isMine = record.accountable?.email.toLowerCase() === sessionEmail
+          <>
+            <div className="hidden md:block">
+              {isGroupedMode ? (
+                <div className="space-y-6">
+                  {groupedByTeam["BU (Jor)"].length > 0 && (
+                    <section className={`rounded-2xl border border-white/8 p-4 ${LANE_CONFIG["BU (Jor)"].bgColor}`}>
+                      <LaneSectionHeader team="BU (Jor)" count={groupedByTeam["BU (Jor)"].length} />
+                      <div
+                        className="grid grid-cols-1 gap-4 md:[grid-template-columns:repeat(var(--bu-cols),minmax(0,1fr))]"
+                        style={{ "--bu-cols": BU_MAX_CARDS } as CSSProperties}
+                      >
+                        {groupedByTeam["BU (Jor)"].map(renderCard)}
+                      </div>
+                    </section>
+                  )}
 
-              return (
-                <KpiCard
-                  key={record.id}
-                  canEdit={isAdmin || isMine}
-                  entry={record}
-                  isMine={Boolean(isMine)}
-                  onEdit={() => setEditingRecord(record)}
-                />
-              )
-            })}
-          </div>
+                  <div className="grid grid-cols-1 gap-x-5 gap-y-6 md:grid-cols-3">
+                    {(["Acquisition", "Retention", "Innovation"] as const).map((team) => (
+                      <section
+                        key={team}
+                        className={`rounded-2xl border border-white/8 p-4 ${LANE_CONFIG[team].bgColor}`}
+                      >
+                        <LaneSectionHeader team={team} count={groupedByTeam[team].length} />
+                        <div className="flex flex-col gap-4">
+                          {groupedByTeam[team].length > 0
+                            ? groupedByTeam[team].map(renderCard)
+                            : <EmptyLane team={team} />}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {activeRecords.map(renderCard)}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-4 md:hidden">
+              {TEAM_ORDER.flatMap((team) => groupedByTeam[team].map(renderCard))}
+            </div>
+          </>
         )}
       </div>
 
