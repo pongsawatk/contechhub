@@ -24,6 +24,22 @@ async function readJson(res: Response): Promise<unknown> {
   }
 }
 
+interface GeminiGenerateContentResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string
+      }>
+    }
+  }>
+}
+
+interface AnthropicMessagesResponse {
+  content?: Array<{
+    text?: string
+  }>
+}
+
 async function callGemini(systemPrompt: string, messages: ChatMessage[], maxTokens = 800): Promise<string> {
   const body = {
     systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -40,7 +56,7 @@ async function callGemini(systemPrompt: string, messages: ChatMessage[], maxToke
     body: JSON.stringify(body),
   })
 
-  const data = await readJson(res)
+  const data = (await readJson(res)) as GeminiGenerateContentResponse | null
   if (!res.ok) {
     console.error('[Chatbot] Gemini error:', data)
     throw new Error('Gemini request failed')
@@ -66,7 +82,7 @@ async function callHaiku(systemPrompt: string, messages: ChatMessage[]): Promise
     body: JSON.stringify(body),
   })
 
-  const data = await readJson(res)
+  const data = (await readJson(res)) as AnthropicMessagesResponse | null
   if (!res.ok) {
     console.error('[Chatbot] Haiku error:', data)
     throw new Error('Haiku request failed')

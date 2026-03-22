@@ -1,4 +1,5 @@
 import { Client } from '@notionhq/client'
+import type { CreatePageParameters, UpdatePageParameters } from '@notionhq/client/build/src/api-endpoints'
 
 const notion = new Client({
   auth: process.env.NOTION_TOKEN,
@@ -86,13 +87,16 @@ function buildProperties(data: Partial<SessionData>): Record<string, unknown> {
 export async function createChatSession(data: SessionData): Promise<string> {
   const page = await notion.pages.create({
     parent: { database_id: CHAT_SESSIONS_DB },
-    properties: buildProperties(data) as Record<string, unknown>,
-  })
+    properties: buildProperties(data) as CreatePageParameters["properties"],
+  } as CreatePageParameters)
 
   return page.id
 }
 
 export async function updateChatSession(pageId: string, data: Partial<SessionData>): Promise<void> {
   const properties = buildProperties(data)
-  await notion.pages.update({ page_id: pageId, properties })
+  await notion.pages.update({
+    page_id: pageId,
+    properties: properties as UpdatePageParameters["properties"],
+  } as UpdatePageParameters)
 }
