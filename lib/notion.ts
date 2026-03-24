@@ -475,7 +475,7 @@ export async function createRevenueEntry(
   data: Omit<RevenueEntry, "id" | "monthLocked">
 ): Promise<string> {
   const page = await notion.pages.create({
-    parent: { database_id: process.env.NOTION_REVENUE_DB_ID! },
+    parent: { data_source_id: process.env.NOTION_REVENUE_DB_ID! },
     properties: {
       "Entry Name": { title: [{ text: { content: data.entryName } }] },
       "Month": { select: { name: data.month } },
@@ -568,7 +568,7 @@ export async function createQuoteSession(data: {
   }
 
   const page = await notion.pages.create({
-    parent: { database_id: process.env.NOTION_QUOTES_DB_ID! },
+    parent: { data_source_id: process.env.NOTION_QUOTES_DB_ID! },
     properties: {
       "Quote Name": {
         title: [{ text: { content: quoteName } }],
@@ -735,7 +735,7 @@ export async function findCustomerByName(companyName: string): Promise<string | 
 
 export async function createCustomer(companyName: string): Promise<string> {
   const page = await notion.pages.create({
-    parent: { database_id: process.env.NOTION_CUSTOMER_DB_ID! },
+    parent: { data_source_id: process.env.NOTION_CUSTOMER_DB_ID! },
     properties: {
       "Company Name": { title: [{ text: { content: companyName } }] },
       "Source": { select: { name: "Jubili Import" } },
@@ -827,7 +827,7 @@ export async function createHotQuotation(data: {
   if (data.lastActivity) properties["Last Activity"] = { date: { start: data.lastActivity } }
 
   const page = await notion.pages.create({
-    parent: { database_id: process.env.NOTION_HOT_QUOTATION_DB_ID! },
+    parent: { data_source_id: process.env.NOTION_HOT_QUOTATION_DB_ID! },
     properties: properties as any,
   })
   return page.id
@@ -948,7 +948,7 @@ export async function createSalesOrder(data: {
   if (data.paymentTerms) properties["Payment Terms"] = { select: { name: data.paymentTerms } }
 
   const page = await notion.pages.create({
-    parent: { database_id: process.env.NOTION_SALES_ORDER_DB_ID! },
+    parent: { data_source_id: process.env.NOTION_SALES_ORDER_DB_ID! },
     properties: properties as any,
   })
   return page.id
