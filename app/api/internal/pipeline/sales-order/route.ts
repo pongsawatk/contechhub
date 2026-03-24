@@ -54,8 +54,16 @@ export async function POST(request: NextRequest) {
           created++
         }
       } catch (err) {
-        errors.push(String(err))
+        const detail = err instanceof Error ? err.message : String(err)
+        errors.push(`${row.orderNo}: ${detail}`)
       }
+    }
+
+    if (errors.length > 0 && created === 0 && updated === 0 && skipped === 0) {
+      return NextResponse.json(
+        { error: "Import Sales Order ไม่สำเร็จ", created, updated, skipped, errors },
+        { status: 400 }
+      )
     }
 
     return NextResponse.json({ created, updated, skipped, errors })

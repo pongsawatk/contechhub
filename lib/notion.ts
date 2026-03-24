@@ -27,6 +27,7 @@ function emailProp(p: any): string { return p?.email ?? "" }
 function selectProp(p: any): string { return p?.select?.name ?? "" }
 function checkboxProp(p: any): boolean { return p?.checkbox ?? false }
 function numberProp(p: any): number { return p?.number ?? 0 }
+function normalizeLookupValue(value: string): string { return value.trim().toLowerCase().replace(/\s+/g, " ") }
 function nullableNumberProp(p: any): number | null {
   return typeof p?.number === "number" ? p.number : null
 }
@@ -34,6 +35,37 @@ function peopleName(p: any): string { return p?.people?.[0]?.name ?? "" }
 function peopleEmail(p: any): string { return p?.people?.[0]?.person?.email ?? "" }
 
 let _notionUsersCache: { id: string; name: string; email: string }[] | null = null
+let _usersAccessCache: { fullName: string; displayName: string; email: string }[] | null = null
+
+async function findAccessUserEmailByName(name: string): Promise<string | null> {
+  if (!name || !process.env.NOTION_USERS_DB_ID) return null
+  try {
+    if (!_usersAccessCache) {
+      const response = await notion.dataSources.query({
+        data_source_id: process.env.NOTION_USERS_DB_ID,
+        page_size: 100,
+      })
+
+      _usersAccessCache = response.results.map((page: any) => ({
+        fullName: titleText(prop(page, "Full Name")),
+        displayName: richText(prop(page, "Display Name")),
+        email: emailProp(prop(page, "Email")),
+      }))
+    }
+
+    const lookup = normalizeLookupValue(name)
+    const match = _usersAccessCache.find((user) =>
+      normalizeLookupValue(user.fullName) === lookup ||
+      normalizeLookupValue(user.displayName) === lookup ||
+      normalizeLookupValue(user.email) === lookup
+    )
+
+    return match?.email ?? null
+  } catch {
+    return null
+  }
+}
+
 async function findNotionUserByName(name: string): Promise<string | null> {
   if (!name) return null
   try {
@@ -45,18 +77,26 @@ async function findNotionUserByName(name: string): Promise<string | null> {
         email: (u.person?.email ?? "") as string,
       }))
     }
-    const lower = name.toLowerCase()
-    // Match by display name first, then email as fallback (backward compat)
-    return (
-      _notionUsersCache.find((u) => u.name.toLowerCase() === lower)?.id ??
-      _notionUsersCache.find((u) => u.email.toLowerCase() === lower)?.id ??
-      null
-    )
+
+    const lookup = normalizeLookupValue(name)
+    const directMatch =
+      _notionUsersCache.find((user) => normalizeLookupValue(user.name) === lookup)?.id ??
+      _notionUsersCache.find((user) => normalizeLookupValue(user.email) === lookup)?.id
+
+    if (directMatch) return directMatch
+
+    const mappedEmail = await findAccessUserEmailByName(name)
+    if (!mappedEmail) return null
+
+    return _notionUsersCache.find((user) => normalizeLookupValue(user.email) === normalizeLookupValue(mappedEmail))?.id ?? null
   } catch {
     return null
   }
 }
 function dateProp(p: any): string | null { return p?.date?.start ?? null }
+function richTextProperty(content: string): { rich_text: Array<{ text: { content: string } }> } | { rich_text: [] } {
+  return content ? { rich_text: [{ text: { content } }] } : { rich_text: [] }
+}
 
 async function queryAllDataSourcePages(dataSourceId: string, filter?: any, sorts?: any[]): Promise<any[]> {
   const results: any[] = []
@@ -767,25 +807,28 @@ export async function createHotQuotation(data: {
   const hotnessMap: Record<string, string> = { "5": "5 \u2014 \u0e23\u0e49\u0e2d\u0e19\u0e21\u0e32\u0e01", "4": "4 \u2014 \u0e23\u0e49\u0e2d\u0e19" }
   const entryName = data.quotationNo + " \u2014 " + data.product
   const ownerId = await findNotionUserByName(data.salesOwner)
+  const properties: Record<string, any> = {
+    "Entry Name": { title: [{ text: { content: entryName } }] },
+    "Quotation No.": richTextProperty(data.quotationNo),
+    "Contact Name": richTextProperty(data.contactName),
+    "Quotation Amount (THB)": { number: data.quotationAmount },
+    "Status": { select: { name: data.status || "Active" } },
+    "Import Batch": richTextProperty(data.importBatch),
+    "Notes": richTextProperty(data.notes),
+  }
+
+  if (data.customerId) properties["Customer"] = { relation: [{ id: data.customerId }] }
+  if (data.product) properties["Product"] = { select: { name: data.product } }
+  if (data.hotness) properties["Hotness"] = { select: { name: hotnessMap[data.hotness] ?? data.hotness } }
+  if (data.lane) properties["Lane"] = { select: { name: data.lane } }
+  if (data.stage) properties["Stage"] = { select: { name: data.stage } }
+  if (ownerId) properties["Sales Owner"] = { people: [{ id: ownerId }] }
+  if (data.expectedClose) properties["Expected Close"] = { date: { start: data.expectedClose } }
+  if (data.lastActivity) properties["Last Activity"] = { date: { start: data.lastActivity } }
+
   const page = await notion.pages.create({
     parent: { database_id: process.env.NOTION_HOT_QUOTATION_DB_ID! },
-    properties: {
-      "Entry Name": { title: [{ text: { content: entryName } }] },
-      "Quotation No.": { rich_text: [{ text: { content: data.quotationNo } }] },
-      "Customer": data.customerId ? { relation: [{ id: data.customerId }] } : {},
-      "Contact Name": { rich_text: [{ text: { content: data.contactName } }] },
-      "Product": data.product ? { select: { name: data.product } } : {},
-      "Quotation Amount (THB)": { number: data.quotationAmount },
-      "Hotness": data.hotness ? { select: { name: hotnessMap[data.hotness] ?? data.hotness } } : {},
-      "Lane": data.lane ? { select: { name: data.lane } } : {},
-      "Stage": data.stage ? { select: { name: data.stage } } : {},
-      "Status": { select: { name: data.status || "Active" } },
-      "Sales Owner": ownerId ? { people: [{ id: ownerId }] } : {},
-      "Expected Close": data.expectedClose ? { date: { start: data.expectedClose } } : {},
-      "Last Activity": data.lastActivity ? { date: { start: data.lastActivity } } : {},
-      "Import Batch": { rich_text: [{ text: { content: data.importBatch } }] },
-      "Notes": { rich_text: [{ text: { content: data.notes } }] },
-    } as any,
+    properties: properties as any,
   })
   return page.id
 }
@@ -793,23 +836,25 @@ export async function createHotQuotation(data: {
 export async function updateHotQuotation(id: string, data: Parameters<typeof createHotQuotation>[0]): Promise<void> {
   const hotnessMap: Record<string, string> = { "5": "5 \u2014 \u0e23\u0e49\u0e2d\u0e19\u0e21\u0e32\u0e01", "4": "4 \u2014 \u0e23\u0e49\u0e2d\u0e19" }
   const ownerId = await findNotionUserByName(data.salesOwner)
+  const properties: Record<string, any> = {
+    "Quotation No.": richTextProperty(data.quotationNo),
+    "Customer": { relation: data.customerId ? [{ id: data.customerId }] : [] },
+    "Contact Name": richTextProperty(data.contactName),
+    "Product": { select: data.product ? { name: data.product } : null },
+    "Quotation Amount (THB)": { number: data.quotationAmount },
+    "Hotness": { select: data.hotness ? { name: hotnessMap[data.hotness] ?? data.hotness } : null },
+    "Lane": { select: data.lane ? { name: data.lane } : null },
+    "Stage": { select: data.stage ? { name: data.stage } : null },
+    "Sales Owner": { people: ownerId ? [{ id: ownerId }] : [] },
+    "Expected Close": { date: data.expectedClose ? { start: data.expectedClose } : null },
+    "Last Activity": { date: data.lastActivity ? { start: data.lastActivity } : null },
+    "Import Batch": richTextProperty(data.importBatch),
+    "Notes": richTextProperty(data.notes),
+  }
+
   await notion.pages.update({
     page_id: id,
-    properties: {
-      "Quotation No.": { rich_text: [{ text: { content: data.quotationNo } }] },
-      "Customer": data.customerId ? { relation: [{ id: data.customerId }] } : {},
-      "Contact Name": { rich_text: [{ text: { content: data.contactName } }] },
-      "Product": data.product ? { select: { name: data.product } } : {},
-      "Quotation Amount (THB)": { number: data.quotationAmount },
-      "Hotness": data.hotness ? { select: { name: hotnessMap[data.hotness] ?? data.hotness } } : {},
-      "Lane": data.lane ? { select: { name: data.lane } } : {},
-      "Stage": data.stage ? { select: { name: data.stage } } : {},
-      "Sales Owner": ownerId ? { people: [{ id: ownerId }] } : {},
-      "Expected Close": data.expectedClose ? { date: { start: data.expectedClose } } : {},
-      "Last Activity": data.lastActivity ? { date: { start: data.lastActivity } } : {},
-      "Import Batch": { rich_text: [{ text: { content: data.importBatch } }] },
-      "Notes": { rich_text: [{ text: { content: data.notes } }] },
-    } as any,
+    properties: properties as any,
   })
 }
 // ── Pipeline: Sales Order ─────────────────────────────────────────────
@@ -880,53 +925,58 @@ export async function createSalesOrder(data: {
 }): Promise<string> {
   const entryName = data.orderNo + " \u2014 " + data.product
   const ownerId = await findNotionUserByName(data.salesOwner)
+  const properties: Record<string, any> = {
+    "Entry Name": { title: [{ text: { content: entryName } }] },
+    "Order No.": richTextProperty(data.orderNo),
+    "Quotation No.": richTextProperty(data.quotationNo),
+    "Contact Name": richTextProperty(data.contactName),
+    "Order Amount (THB)": { number: data.orderAmount },
+    "Contract Months": { number: data.contractMonths },
+    "Recognition Status": { select: { name: "Pending" } },
+    "Import Batch": richTextProperty(data.importBatch),
+    "Notes": richTextProperty(data.notes),
+  }
+
+  if (data.customerId) properties["Customer"] = { relation: [{ id: data.customerId }] }
+  if (data.hotQuotationId) properties["Hot Quotation"] = { relation: [{ id: data.hotQuotationId }] }
+  if (data.product) properties["Product"] = { select: { name: data.product } }
+  if (data.lane) properties["Lane"] = { select: { name: data.lane } }
+  if (data.revenueType) properties["Revenue Type"] = { select: { name: data.revenueType } }
+  if (data.closeDate) properties["Close Date"] = { date: { start: data.closeDate } }
+  if (data.expectedGoLive) properties["Expected Go-live"] = { date: { start: data.expectedGoLive } }
+  if (ownerId) properties["Sales Owner"] = { people: [{ id: ownerId }] }
+  if (data.paymentTerms) properties["Payment Terms"] = { select: { name: data.paymentTerms } }
+
   const page = await notion.pages.create({
     parent: { database_id: process.env.NOTION_SALES_ORDER_DB_ID! },
-    properties: {
-      "Entry Name": { title: [{ text: { content: entryName } }] },
-      "Order No.": { rich_text: [{ text: { content: data.orderNo } }] },
-      "Quotation No.": { rich_text: [{ text: { content: data.quotationNo } }] },
-      "Customer": data.customerId ? { relation: [{ id: data.customerId }] } : {},
-      "Hot Quotation": data.hotQuotationId ? { relation: [{ id: data.hotQuotationId }] } : {},
-      "Contact Name": { rich_text: [{ text: { content: data.contactName } }] },
-      "Product": data.product ? { select: { name: data.product } } : {},
-      "Order Amount (THB)": { number: data.orderAmount },
-      "Lane": data.lane ? { select: { name: data.lane } } : {},
-      "Revenue Type": data.revenueType ? { select: { name: data.revenueType } } : {},
-      "Close Date": data.closeDate ? { date: { start: data.closeDate } } : {},
-      "Expected Go-live": data.expectedGoLive ? { date: { start: data.expectedGoLive } } : {},
-      "Contract Months": { number: data.contractMonths },
-      "Sales Owner": ownerId ? { people: [{ id: ownerId }] } : {},
-      "Payment Terms": data.paymentTerms ? { select: { name: data.paymentTerms } } : {},
-      "Recognition Status": { select: { name: "Pending" } },
-      "Import Batch": { rich_text: [{ text: { content: data.importBatch } }] },
-      "Notes": { rich_text: [{ text: { content: data.notes } }] },
-    } as any,
+    properties: properties as any,
   })
   return page.id
 }
 
 export async function updateSalesOrder(id: string, data: Parameters<typeof createSalesOrder>[0]): Promise<void> {
   const ownerId = await findNotionUserByName(data.salesOwner)
+  const properties: Record<string, any> = {
+    "Quotation No.": richTextProperty(data.quotationNo),
+    "Customer": { relation: data.customerId ? [{ id: data.customerId }] : [] },
+    "Hot Quotation": { relation: data.hotQuotationId ? [{ id: data.hotQuotationId }] : [] },
+    "Contact Name": richTextProperty(data.contactName),
+    "Product": { select: data.product ? { name: data.product } : null },
+    "Order Amount (THB)": { number: data.orderAmount },
+    "Lane": { select: data.lane ? { name: data.lane } : null },
+    "Revenue Type": { select: data.revenueType ? { name: data.revenueType } : null },
+    "Close Date": { date: data.closeDate ? { start: data.closeDate } : null },
+    "Expected Go-live": { date: data.expectedGoLive ? { start: data.expectedGoLive } : null },
+    "Contract Months": { number: data.contractMonths },
+    "Sales Owner": { people: ownerId ? [{ id: ownerId }] : [] },
+    "Payment Terms": { select: data.paymentTerms ? { name: data.paymentTerms } : null },
+    "Import Batch": richTextProperty(data.importBatch),
+    "Notes": richTextProperty(data.notes),
+  }
+
   await notion.pages.update({
     page_id: id,
-    properties: {
-      "Quotation No.": { rich_text: [{ text: { content: data.quotationNo } }] },
-      "Customer": data.customerId ? { relation: [{ id: data.customerId }] } : {},
-      "Hot Quotation": data.hotQuotationId ? { relation: [{ id: data.hotQuotationId }] } : {},
-      "Contact Name": { rich_text: [{ text: { content: data.contactName } }] },
-      "Product": data.product ? { select: { name: data.product } } : {},
-      "Order Amount (THB)": { number: data.orderAmount },
-      "Lane": data.lane ? { select: { name: data.lane } } : {},
-      "Revenue Type": data.revenueType ? { select: { name: data.revenueType } } : {},
-      "Close Date": data.closeDate ? { date: { start: data.closeDate } } : {},
-      "Expected Go-live": data.expectedGoLive ? { date: { start: data.expectedGoLive } } : {},
-      "Contract Months": { number: data.contractMonths },
-      "Sales Owner": ownerId ? { people: [{ id: ownerId }] } : {},
-      "Payment Terms": data.paymentTerms ? { select: { name: data.paymentTerms } } : {},
-      "Import Batch": { rich_text: [{ text: { content: data.importBatch } }] },
-      "Notes": { rich_text: [{ text: { content: data.notes } }] },
-    } as any,
+    properties: properties as any,
   })
 }
 

@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import { useState, useRef } from "react"
-import type { Customer, ParsedRow, ParsedHotQuotation, ParsedSalesOrder } from "@/types/pipeline"
+import { useRef, useState } from "react"
+import type { Customer, ParsedHotQuotation, ParsedRow, ParsedSalesOrder } from "@/types/pipeline"
 import { parseHotQuotation, parseSalesOrder } from "@/lib/excel-parser"
 import ImportPreviewTable from "./ImportPreviewTable"
 import DuplicateWarning from "./DuplicateWarning"
@@ -17,6 +17,7 @@ interface Props {
 }
 
 type Step = "upload" | "preview" | "importing" | "done"
+type ImportSummary = { created: number; updated: number; skipped: number; errors: string[] }
 
 export default function ExcelImportModal({ type, existingKeys, customers, onClose, onSuccess }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -27,157 +28,236 @@ export default function ExcelImportModal({ type, existingKeys, customers, onClos
   const [perRowAction, setPerRowAction] = useState<Record<string, "skip" | "overwrite">>({})
   const [newCompanies, setNewCompanies] = useState<string[]>([])
   const [autoCreate, setAutoCreate] = useState(true)
-
   const [progress, setProgress] = useState(0)
-  const [result, setResult] = useState<{ created: number; updated: number; skipped: number } | null>(null)
+  const [result, setResult] = useState<ImportSummary | null>(null)
   const [parseError, setParseError] = useState("")
-  const customerNames = new Set(customers.map((c) => c.companyName))
+  const customerNames = new Set(customers.map((customer) => customer.companyName))
 
-  async function handleFile(f: File) {
-    setFile(f)
+  async function handleFile(selectedFile: File) {
+    setFile(selectedFile)
     setParseError("")
+    setResult(null)
+
     try {
-      const buf = await f.arrayBuffer()
-      const parsed = type === "hot-quotation" ? parseHotQuotation(buf) : parseSalesOrder(buf)
+      const buffer = await selectedFile.arrayBuffer()
+      const parsed = type === "hot-quotation" ? parseHotQuotation(buffer) : parseSalesOrder(buffer)
       setRows(parsed.all)
-      const dups: string[] = []
-      for (const r of parsed.valid) {
-        const d = r.data as any
+
+      const nextDuplicates: string[] = []
+      for (const row of parsed.valid) {
+        const data = row.data as any
         const key = type === "hot-quotation"
-          ? (d as ParsedHotQuotation).quotationNo + "|" + (d as ParsedHotQuotation).product
-          : (d as ParsedSalesOrder).orderNo
-        if (existingKeys.includes(key)) dups.push(key)
+          ? (data as ParsedHotQuotation).quotationNo + "|" + (data as ParsedHotQuotation).product
+          : (data as ParsedSalesOrder).orderNo
+
+        if (existingKeys.includes(key)) nextDuplicates.push(key)
       }
-      setDuplicates(dups)
-      const initActions: Record<string, "skip" | "overwrite"> = {}
-      dups.forEach((k) => { initActions[k] = "skip" })
-      setPerRowAction(initActions)
-      const companies = new Set(parsed.all.map((r) => (r.data as any).companyName).filter(Boolean))
-      setNewCompanies([...companies].filter((c) => !customerNames.has(c)))
+
+      setDuplicates(nextDuplicates)
+
+      const nextActions: Record<string, "skip" | "overwrite"> = {}
+      nextDuplicates.forEach((key) => { nextActions[key] = "skip" })
+      setPerRowAction(nextActions)
+
+      const companies = new Set(parsed.all.map((row) => (row.data as any).companyName).filter(Boolean))
+      setNewCompanies([...companies].filter((company) => !customerNames.has(company)))
       setStep("preview")
-    } catch (e) {
-      setParseError("ไม่สามารถอ่านไฟล์ได้: " + String(e))
+    } catch (error) {
+      setParseError("Cannot read Excel file: " + String(error))
     }
   }
 
   async function handleImport() {
     setStep("importing")
     setProgress(10)
-    const validRows = rows.filter((r) => r.errors.length === 0)
+    setParseError("")
+
+    const validRows = rows.filter((row) => row.errors.length === 0)
+
     try {
       setProgress(40)
-      const res = await fetch("/api/internal/pipeline/" + type, {
+
+      const response = await fetch("/api/internal/pipeline/" + type, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          rows: validRows.map((r) => r.data),
+          rows: validRows.map((row) => row.data),
           importBatch: file?.name ?? "import",
-          skipKeys: Object.entries(perRowAction).filter(([, v]) => v === "skip").map(([k]) => k),
+          skipKeys: Object.entries(perRowAction)
+            .filter(([, action]) => action === "skip")
+            .map(([key]) => key),
           autoCreate,
         }),
       })
+
       setProgress(90)
-      if (!res.ok) throw new Error((await res.json()).error)
-      const data = await res.json()
+      const data = await response.json()
+
+      if (!response.ok) {
+        const details = Array.isArray(data.errors) ? data.errors.join("\n") : ""
+        throw new Error([data.error, details].filter(Boolean).join("\n"))
+      }
+
+      const summary: ImportSummary = {
+        created: data.created ?? 0,
+        updated: data.updated ?? 0,
+        skipped: data.skipped ?? 0,
+        errors: Array.isArray(data.errors) ? data.errors : [],
+      }
+
       setProgress(100)
-      const r = { created: data.created ?? 0, updated: data.updated ?? 0, skipped: data.skipped ?? 0 }
-      setResult(r)
+      setResult(summary)
       setStep("done")
-      onSuccess(r)
-    } catch (e) {
-      setParseError(String(e))
+      onSuccess({ created: summary.created, updated: summary.updated, skipped: summary.skipped })
+    } catch (error) {
+      setParseError(String(error))
       setStep("preview")
     }
   }
 
-  const validCount = rows.filter((r) => r.errors.length === 0).length
-  const invalidCount = rows.filter((r) => r.errors.length > 0).length
-  const warnCount = rows.filter((r) => r.errors.length === 0 && r.warnings.length > 0).length
+  const validCount = rows.filter((row) => row.errors.length === 0).length
+  const invalidCount = rows.filter((row) => row.errors.length > 0).length
+  const warnCount = rows.filter((row) => row.errors.length === 0 && row.warnings.length > 0).length
   const title = type === "hot-quotation" ? "Import Hot Quotation" : "Import Sales Order"
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="glass-card max-h-[90vh] w-full max-w-2xl overflow-y-auto">
+        <div className="space-y-5 p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-white font-semibold text-lg">{title}</h2>
-            <button onClick={onClose} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
+            <h2 className="text-lg font-semibold text-white">{title}</h2>
+            <button onClick={onClose} className="text-xl leading-none text-white/50 hover:text-white">&times;</button>
           </div>
-          {parseError && <p className="text-red-400 text-sm bg-red-400/10 p-3 rounded-lg">{parseError}</p>}
+
+          {parseError && (
+            <p className="whitespace-pre-wrap rounded-lg bg-red-400/10 p-3 text-sm text-red-400">
+              {parseError}
+            </p>
+          )}
 
           {step === "upload" && (
-            <div className="border-2 border-dashed border-white/20 rounded-xl p-10 text-center cursor-pointer hover:border-accent-cyan/40 transition-all"
+            <div
+              className="cursor-pointer rounded-xl border-2 border-dashed border-white/20 p-10 text-center transition-all hover:border-accent-cyan/40"
               onClick={() => fileRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}>
-              <div className="text-4xl mb-3">📊</div>
-              <div className="text-white font-medium">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</div>
-              <div className="text-white/40 text-sm mt-1">.xlsx หรือ .xls</div>
-              <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault()
+                const droppedFile = event.dataTransfer.files[0]
+                if (droppedFile) handleFile(droppedFile)
+              }}
+            >
+              <div className="mb-3 text-4xl">+</div>
+              <div className="font-medium text-white">Drop an Excel file here or click to choose one</div>
+              <div className="mt-1 text-sm text-white/40">Accepted: .xlsx, .xls</div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(event) => {
+                  const selectedFile = event.target.files?.[0]
+                  if (selectedFile) handleFile(selectedFile)
+                }}
+              />
             </div>
           )}
 
           {step === "preview" && (
             <div className="space-y-4">
               <div className="flex items-center gap-4 text-sm">
-                <span className="text-green-400">✓ {validCount} แถวถูกต้อง</span>
-                {warnCount > 0 && <span className="text-yellow-400">⚠️ {warnCount} แถวมีคำเตือน</span>}
-                {invalidCount > 0 && <span className="text-red-400">✗ {invalidCount} แถวมีข้อผิดพลาด</span>}
+                <span className="text-green-400">Valid: {validCount}</span>
+                {warnCount > 0 && <span className="text-yellow-400">Warnings: {warnCount}</span>}
+                {invalidCount > 0 && <span className="text-red-400">Invalid: {invalidCount}</span>}
               </div>
+
               <ImportPreviewTable rows={rows} type={type} />
+
               {duplicates.length > 0 && (
                 <DuplicateWarning
                   duplicates={duplicates}
                   perRowAction={perRowAction}
-                  onRowAction={(key, action) => setPerRowAction((prev) => ({ ...prev, [key]: action }))}
+                  onRowAction={(key, action) => setPerRowAction((current) => ({ ...current, [key]: action }))}
                 />
               )}
-              {newCompanies.length > 0 && <CustomerAutoCreate newCompanies={newCompanies} autoCreate={autoCreate} onToggle={setAutoCreate} />}
-              <div className="bg-white/5 rounded-lg p-3 text-sm text-white/60">
+
+              {newCompanies.length > 0 && (
+                <CustomerAutoCreate newCompanies={newCompanies} autoCreate={autoCreate} onToggle={setAutoCreate} />
+              )}
+
+              <div className="rounded-lg bg-white/5 p-3 text-sm text-white/60">
                 {(() => {
-                  const skipCount = Object.values(perRowAction).filter((v) => v === "skip").length
-                  const overCount = Object.values(perRowAction).filter((v) => v === "overwrite").length
+                  const skipCount = Object.values(perRowAction).filter((action) => action === "skip").length
+                  const overwriteCount = Object.values(perRowAction).filter((action) => action === "overwrite").length
+
                   return (
                     <>
-                      จะ Import {validCount} รายการ
-                      {skipCount > 0 && <span className="text-white/40"> · ข้าม {skipCount} ซ้ำ</span>}
-                      {overCount > 0 && <span className="text-yellow-400/70"> · อัปเดต {overCount} ซ้ำ</span>}
-                      {newCompanies.length > 0 && autoCreate && <span className="text-accent-cyan/70"> · สร้างลูกค้าใหม่ {newCompanies.length} ราย</span>}
+                      Importing {validCount} valid row(s)
+                      {skipCount > 0 && <span className="text-white/40"> | Skip duplicates: {skipCount}</span>}
+                      {overwriteCount > 0 && <span className="text-yellow-400/70"> | Overwrite duplicates: {overwriteCount}</span>}
+                      {newCompanies.length > 0 && autoCreate && (
+                        <span className="text-accent-cyan/70"> | Auto-create customers: {newCompanies.length}</span>
+                      )}
                     </>
                   )
                 })()}
               </div>
+
               <div className="flex gap-3">
-                <button onClick={() => { setStep("upload"); setRows([]) }} className="flex-1 glass-ghost py-2 text-sm rounded-lg">เลือกไฟล์ใหม่</button>
-                <button onClick={handleImport} disabled={validCount === 0}
-                  className="flex-1 glass-btn py-2 text-sm rounded-lg disabled:opacity-50">
-                  ยืนยัน Import ({validCount} รายการ)
+                <button
+                  onClick={() => {
+                    setStep("upload")
+                    setRows([])
+                    setDuplicates([])
+                    setPerRowAction({})
+                    setNewCompanies([])
+                    setParseError("")
+                    setResult(null)
+                  }}
+                  className="glass-ghost flex-1 rounded-lg py-2 text-sm"
+                >
+                  Choose another file
+                </button>
+
+                <button
+                  onClick={handleImport}
+                  disabled={validCount === 0}
+                  className="glass-btn flex-1 rounded-lg py-2 text-sm disabled:opacity-50"
+                >
+                  Confirm Import ({validCount})
                 </button>
               </div>
             </div>
           )}
 
           {step === "importing" && (
-            <div className="py-8 space-y-4">
-              <div className="text-center text-white">กำลัง Import...</div>
-              <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
-                <div className="h-3 rounded-full bg-gradient-to-r from-green-500 to-cyan-400 transition-all duration-500"
-                  style={{ width: progress + "%" }} />
+            <div className="space-y-4 py-8">
+              <div className="text-center text-white">Importing...</div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-3 rounded-full bg-gradient-to-r from-green-500 to-cyan-400 transition-all duration-500"
+                  style={{ width: progress + "%" }}
+                />
               </div>
             </div>
           )}
 
           {step === "done" && result && (
-            <div className="py-8 text-center space-y-4">
-              <div className="text-5xl">✅</div>
-              <div className="text-white font-semibold text-lg">Import สำเร็จ</div>
-              <div className="text-white/60 text-sm space-y-1">
-                <div>สร้างใหม่: {result.created} รายการ</div>
-                {result.updated > 0 && <div>อัปเดต: {result.updated} รายการ</div>}
-                {result.skipped > 0 && <div>ข้าม: {result.skipped} รายการ</div>}
+            <div className="space-y-4 py-8 text-center">
+              <div className="text-5xl">OK</div>
+              <div className="text-lg font-semibold text-white">Import finished</div>
+              <div className="space-y-1 text-sm text-white/60">
+                <div>Created: {result.created}</div>
+                {result.updated > 0 && <div>Updated: {result.updated}</div>}
+                {result.skipped > 0 && <div>Skipped: {result.skipped}</div>}
               </div>
-              <button onClick={onClose} className="glass-btn px-6 py-2 text-sm rounded-lg">ปิด</button>
+
+              {result.errors.length > 0 && (
+                <div className="whitespace-pre-wrap rounded-lg bg-red-400/10 p-4 text-left text-sm text-red-300">
+                  {result.errors.join("\n")}
+                </div>
+              )}
+
+              <button onClick={onClose} className="glass-btn rounded-lg px-6 py-2 text-sm">Close</button>
             </div>
           )}
         </div>
