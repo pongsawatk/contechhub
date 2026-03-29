@@ -52,6 +52,12 @@ const navLinks: NavLink[] = [
     roles: ["admin", "bu_member"],
     feature: "pipeline",
   },
+  {
+    label: "BU Playbook",
+    href: "/dashboard/playbook",
+    roles: ["admin", "bu_member"],
+    feature: "playbook",
+  },
 ];
 
 function isFeatureVisible(feature: FeatureKey) {
