@@ -16,9 +16,9 @@ export default async function PlaybookPage() {
   if (appRole !== "admin" && appRole !== "bu_member") redirect("/dashboard")
 
   return (
-    <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen -translate-x-1/2 px-4 sm:px-6">
+    <div className="relative left-1/2 w-screen max-w-none -translate-x-1/2">
       <div
-        className="min-h-[calc(100vh-7rem)] py-6 sm:py-8"
+        className="min-h-[calc(100vh-7rem)] px-4 py-6 sm:px-6 sm:py-8 lg:px-8"
         style={{
           background: "linear-gradient(135deg, #0a0f1e 0%, #0d1a2e 50%, #071a14 100%)",
         }}
