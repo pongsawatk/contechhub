@@ -35,6 +35,44 @@ function getSectionLabel(key: StaticSectionKey) {
   return "ตารางประชุม"
 }
 
+function renderWorkstreamButton(
+  item: PlaybookQuarter["workstreams"][number],
+  isActive: boolean,
+  onClick: () => void
+) {
+  return (
+    <button
+      key={item.id}
+      type="button"
+      className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left transition-colors ${
+        isActive ? "bg-white/10" : "hover:bg-white/5"
+      }`}
+      onClick={onClick}
+    >
+      <span
+        className={`w-7 flex-shrink-0 pt-0.5 font-mono text-[10px] leading-none ${
+          isActive ? "text-blue-400" : "text-white/30"
+        }`}
+      >
+        {item.id.toUpperCase()}
+      </span>
+
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span
+          className={`truncate text-[13px] leading-tight ${
+            isActive ? "font-medium text-white" : "text-white/60"
+          }`}
+        >
+          {item.navLabel}
+        </span>
+        <span className="truncate text-[11px] leading-tight text-white/35">
+          {item.navSubtitle}
+        </span>
+      </span>
+    </button>
+  )
+}
+
 export default function PlaybookShell({ quarters, defaultQuarter }: PlaybookShellProps) {
   const [selectedQuarter, setSelectedQuarter] = useState<QuarterKey>(defaultQuarter)
   const [selectedSection, setSelectedSection] = useState<SectionKey>(() =>
@@ -126,63 +164,33 @@ export default function PlaybookShell({ quarters, defaultQuarter }: PlaybookShel
                 <div>
                   <p className="px-2 text-xs uppercase tracking-[0.2em] text-white/35">Sales</p>
                   <div className="mt-2 space-y-1">
-                    {salesItems.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all ${
-                          selectedSection === item.id
-                            ? "bg-white/10 font-semibold text-white"
-                            : "text-white/60 hover:bg-white/5 hover:text-white/80"
-                        }`}
-                        onClick={() => setSelectedSection(item.id)}
-                      >
-                        <span className={`h-2.5 w-2.5 rounded-full ${getDotClass(item.id)}`} />
-                        <span className="truncate">{item.title}</span>
-                      </button>
-                    ))}
+                    {salesItems.map((item) =>
+                      renderWorkstreamButton(item, selectedSection === item.id, () =>
+                        setSelectedSection(item.id)
+                      )
+                    )}
                   </div>
                 </div>
 
                 <div>
                   <p className="px-2 text-xs uppercase tracking-[0.2em] text-white/35">Delivery</p>
                   <div className="mt-2 space-y-1">
-                    {deliveryItems.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all ${
-                          selectedSection === item.id
-                            ? "bg-white/10 font-semibold text-white"
-                            : "text-white/60 hover:bg-white/5 hover:text-white/80"
-                        }`}
-                        onClick={() => setSelectedSection(item.id)}
-                      >
-                        <span className={`h-2.5 w-2.5 rounded-full ${getDotClass(item.id)}`} />
-                        <span className="truncate">{item.title}</span>
-                      </button>
-                    ))}
+                    {deliveryItems.map((item) =>
+                      renderWorkstreamButton(item, selectedSection === item.id, () =>
+                        setSelectedSection(item.id)
+                      )
+                    )}
                   </div>
                 </div>
 
                 <div>
                   <p className="px-2 text-xs uppercase tracking-[0.2em] text-white/35">Growth</p>
                   <div className="mt-2 space-y-1">
-                    {growthItems.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all ${
-                          selectedSection === item.id
-                            ? "bg-white/10 font-semibold text-white"
-                            : "text-white/60 hover:bg-white/5 hover:text-white/80"
-                        }`}
-                        onClick={() => setSelectedSection(item.id)}
-                      >
-                        <span className={`h-2.5 w-2.5 rounded-full ${getDotClass(item.id)}`} />
-                        <span className="truncate">{item.title}</span>
-                      </button>
-                    ))}
+                    {growthItems.map((item) =>
+                      renderWorkstreamButton(item, selectedSection === item.id, () =>
+                        setSelectedSection(item.id)
+                      )
+                    )}
                   </div>
                 </div>
 

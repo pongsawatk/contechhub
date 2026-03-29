@@ -27,6 +27,8 @@ export interface WorkstreamSection {
 
 export interface WorkstreamData {
   id: string
+  navLabel: string
+  navSubtitle: string
   emoji: string
   title: string
   subtitle: string
@@ -101,6 +103,8 @@ export const PLAYBOOK_DATA: Record<QuarterKey, PlaybookQuarter> = {
     workstreams: [
       {
         id: "ws1",
+        navLabel: "ขายรายย่อย",
+        navSubtitle: "Biz Lane",
         emoji: "🎯",
         title: "WS1 — กระบวนการขายรายย่อย",
         subtitle: "Biz Lane: รับสร้างบ้าน > Interior > Solar EPC",
@@ -165,6 +169,8 @@ export const PLAYBOOK_DATA: Record<QuarterKey, PlaybookQuarter> = {
       },
       {
         id: "ws2",
+        navLabel: "ขายองค์กร",
+        navSubtitle: "Corp Lane",
         emoji: "🏢",
         title: "WS2 — กระบวนการขายองค์กร",
         subtitle: "Corp Lane: Value Game เน้นมูลค่าต่อดีล",
@@ -222,6 +228,8 @@ export const PLAYBOOK_DATA: Record<QuarterKey, PlaybookQuarter> = {
       },
       {
         id: "ws3",
+        navLabel: "ติดตั้งระบบ",
+        navSubtitle: "Implementation",
         emoji: "⚙️",
         title: "WS3 — กระบวนการติดตั้งระบบ",
         subtitle: "Implementation: ตั้งต้นให้ถูก ลดปัญหาหน้างาน",
@@ -264,6 +272,8 @@ export const PLAYBOOK_DATA: Record<QuarterKey, PlaybookQuarter> = {
       },
       {
         id: "ws4",
+        navLabel: "Go-Live & TTV",
+        navSubtitle: "30 วันแรก",
         emoji: "🚀",
         title: "WS4 — เริ่มใช้งานจริง & ติดตามคุณค่า 30 วันแรก",
         subtitle: "Go-Live & TTV: ลูกค้าใหม่ทุกรายต้องเห็นคุณค่าภายใน 30 วัน",
@@ -310,6 +320,8 @@ export const PLAYBOOK_DATA: Record<QuarterKey, PlaybookQuarter> = {
       },
       {
         id: "ws5",
+        navLabel: "ดูแลรักษาลูกค้า",
+        navSubtitle: "Retention & Upsell",
         emoji: "🌱",
         title: "WS5 — ติดตามการใช้งาน ดูแลรักษาลูกค้า & เสนอขายเพิ่ม",
         subtitle: "Retention & Upsell: Upsell >= 600k | Churn <= 5%",
@@ -359,6 +371,8 @@ export const PLAYBOOK_DATA: Record<QuarterKey, PlaybookQuarter> = {
       },
       {
         id: "ws6",
+        navLabel: "Transformation",
+        navSubtitle: "Service Delivery",
         emoji: "🔬",
         title: "WS6 — บริการ Transformation Service",
         subtitle: "เปลี่ยนองค์กรด้วย AI, Automation & BI",
@@ -409,6 +423,8 @@ export const PLAYBOOK_DATA: Record<QuarterKey, PlaybookQuarter> = {
       },
       {
         id: "ws7",
+        navLabel: "การตลาด",
+        navSubtitle: "Content & MQL",
         emoji: "📢",
         title: "WS7 — การตลาดและเนื้อหา",
         subtitle: "Problem-first Content สร้าง Trust ก่อนขาย",
@@ -456,6 +472,8 @@ export const PLAYBOOK_DATA: Record<QuarterKey, PlaybookQuarter> = {
       },
       {
         id: "ws8",
+        navLabel: "Automation",
+        navSubtitle: "Process & Build",
         emoji: "⚡",
         title: "WS8 — ระบบอัตโนมัติภายในทีม",
         subtitle: "Automation & Process: ลดงาน Routine >= 40 ชม./ไตรมาส",
