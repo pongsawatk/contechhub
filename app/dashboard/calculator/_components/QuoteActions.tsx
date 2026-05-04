@@ -2,11 +2,14 @@
 
 import { useState } from 'react'
 import type { CalculatorInput, PriceBreakdown } from '@/types/calculator'
+import type { PricingItem } from '@/types/pricing'
 import type { UserProfile } from '@/types/user'
+import { buildPackageExportDetails } from '@/lib/quote-export'
 
 interface QuoteActionsProps {
   breakdown: PriceBreakdown
   input: CalculatorInput
+  pricingItems: PricingItem[]
   currentUser?: UserProfile
   isSaving: boolean
   savedQuoteId: string | null
@@ -26,6 +29,7 @@ function formatClipboardLine(price: number, isDiscount?: boolean, isWaived?: boo
 export default function QuoteActions({
   breakdown,
   input,
+  pricingItems,
   currentUser,
   isSaving,
   savedQuoteId,
@@ -96,7 +100,14 @@ export default function QuoteActions({
   }
 
   function handleExport() {
-    const exportData = { input, breakdown, user: currentUser, date: today }
+    const packageDetails = buildPackageExportDetails(input, pricingItems)
+    const exportData = {
+      input,
+      breakdown,
+      user: currentUser,
+      date: today,
+      packageDetails,
+    }
     try {
       sessionStorage.setItem('quoteExport', JSON.stringify(exportData))
     } catch {

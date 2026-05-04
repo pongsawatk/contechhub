@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import ExportTemplate from '../_components/ExportTemplate'
 import type { CalculatorInput, PriceBreakdown } from '@/types/calculator'
 import type { UserProfile } from '@/types/user'
+import type { PackageExportDetail } from '@/types/quote'
 
 interface ExportData {
   input: CalculatorInput
   breakdown: PriceBreakdown
   user?: UserProfile
   date?: string
+  packageDetails?: PackageExportDetail[]
 }
 
 export default function ExportPage() {
@@ -115,6 +117,7 @@ export default function ExportPage() {
         breakdown={data.breakdown}
         user={data.user}
         date={data.date}
+        packageDetails={data.packageDetails}
       />
     </div>
   )

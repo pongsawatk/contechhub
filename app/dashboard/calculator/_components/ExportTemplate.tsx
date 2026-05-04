@@ -1,5 +1,6 @@
 import type { CalculatorInput, PriceBreakdown } from '@/types/calculator'
 import type { UserProfile } from '@/types/user'
+import type { PackageExportDetail } from '@/types/quote'
 
 interface ExportTemplateProps {
   input: CalculatorInput
@@ -7,6 +8,7 @@ interface ExportTemplateProps {
   user?: UserProfile
   date?: string
   quoteId?: string
+  packageDetails?: PackageExportDetail[]
 }
 
 function formatTHB(n: number): string {
@@ -31,9 +33,18 @@ export default function ExportTemplate({
   user,
   date,
   quoteId,
+  packageDetails,
 }: ExportTemplateProps) {
   const annualItems = breakdown.lineItems.filter((item) => !item.isOneTime)
   const oneTimeItems = breakdown.lineItems.filter((item) => item.isOneTime)
+  const detailsToShow = (packageDetails ?? []).filter(
+    (detail) =>
+      detail.keyInclusions.length > 0 ||
+      detail.notes ||
+      detail.addons.length > 0 ||
+      detail.topups.length > 0 ||
+      (detail.isEnterprise && (detail.enterpriseBaseNote || detail.enterprisePremiumNote))
+  )
 
   return (
     <div
@@ -302,6 +313,243 @@ export default function ExportTemplate({
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#92400e' }}>
             Total saved {formatTHB(breakdown.kickstarterTotalSaving)} THB
           </p>
+        </div>
+      )}
+
+      {detailsToShow.length > 0 && (
+        <div
+          style={{
+            marginBottom: '24px',
+            pageBreakInside: 'avoid',
+          }}
+        >
+          <p
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#374151',
+              marginBottom: '10px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            เงื่อนไขแพ็กเกจ / What&apos;s Included
+          </p>
+          {detailsToShow.map((detail, index) => {
+            const enterpriseTier =
+              detail.enterpriseTier === 'premium' ? 'Premium' : 'Base'
+            return (
+              <div
+                key={`${detail.product}-${detail.packageName}-${index}`}
+                style={{
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '14px 16px',
+                  marginBottom: '10px',
+                  background: '#fafafa',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    gap: '8px',
+                    marginBottom: '6px',
+                  }}
+                >
+                  <p style={{ fontWeight: 700, fontSize: '14px', color: '#0f6e56' }}>
+                    {detail.packageName}
+                    {detail.isEnterprise && (
+                      <span
+                        style={{
+                          marginLeft: '8px',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          background: '#fef3c7',
+                          color: '#92400e',
+                          letterSpacing: '0.3px',
+                        }}
+                      >
+                        {enterpriseTier} Tier
+                      </span>
+                    )}
+                  </p>
+                  <span style={{ fontSize: '11px', color: '#6b7280' }}>{detail.product}</span>
+                </div>
+                {detail.targetProfile && (
+                  <p
+                    style={{
+                      fontSize: '11px',
+                      color: '#6b7280',
+                      marginBottom: '8px',
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    เหมาะสำหรับ: {detail.targetProfile}
+                  </p>
+                )}
+                {detail.keyInclusions.length > 0 && (
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: '18px',
+                      fontSize: '12px',
+                      color: '#1f2937',
+                      lineHeight: 1.7,
+                    }}
+                  >
+                    {detail.keyInclusions.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+                {detail.notes && (
+                  <div
+                    style={{
+                      marginTop: '10px',
+                      background: '#fff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      padding: '8px 10px',
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: '#6b7280',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Package notes
+                    </p>
+                    <p style={{ fontSize: '11px', color: '#1f2937', lineHeight: 1.6 }}>
+                      {detail.notes}
+                    </p>
+                  </div>
+                )}
+                {detail.isEnterprise && (detail.enterpriseBaseNote || detail.enterprisePremiumNote) && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '8px',
+                      marginTop: '10px',
+                    }}
+                  >
+                    {detail.enterpriseBaseNote && (
+                      <div
+                        style={{
+                          background: '#fff',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            color: '#6b7280',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.4px',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          Base
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#1f2937', lineHeight: 1.6 }}>
+                          {detail.enterpriseBaseNote}
+                        </p>
+                      </div>
+                    )}
+                    {detail.enterprisePremiumNote && (
+                      <div
+                        style={{
+                          background: '#fff',
+                          border: '1px solid #fde68a',
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            color: '#92400e',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.4px',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          Premium
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#1f2937', lineHeight: 1.6 }}>
+                          {detail.enterprisePremiumNote}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {detail.addons.length > 0 && (
+                  <div style={{ marginTop: '10px' }}>
+                    <p
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: '#6b7280',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Add-ons
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '11px', color: '#1f2937', lineHeight: 1.6 }}>
+                      {detail.addons.map((addon, i) => (
+                        <li key={i}>
+                          <strong>{addon.name}</strong>
+                          {addon.description && <span style={{ color: '#4b5563' }}> — {addon.description}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {detail.topups.length > 0 && (
+                  <div style={{ marginTop: '10px' }}>
+                    <p
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: '#6b7280',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Top-ups
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '11px', color: '#1f2937', lineHeight: 1.6 }}>
+                      {detail.topups.map((topup, i) => (
+                        <li key={i}>
+                          <strong>
+                            {topup.name} ({topup.quantity}
+                            {topup.quantityUnit ? ` ${topup.quantityUnit}` : ''})
+                          </strong>
+                          {topup.description && <span style={{ color: '#4b5563' }}> — {topup.description}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 

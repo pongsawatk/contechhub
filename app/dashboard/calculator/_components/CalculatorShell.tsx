@@ -536,6 +536,7 @@ export default function CalculatorShell({
           <QuoteActions
             breakdown={breakdown}
             input={input}
+            pricingItems={pricingItems}
             currentUser={currentUser}
             isSaving={isSaving}
             savedQuoteId={savedQuoteId}
