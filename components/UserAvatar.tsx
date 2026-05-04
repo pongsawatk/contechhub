@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useSession, signOut } from "next-auth/react";
 import type { UserProfile } from "@/types/user";
 
@@ -167,7 +168,7 @@ function AccessPermissionsModal({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/85 p-4 sm:p-6"
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/85 p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="access-permissions-title"
@@ -296,6 +297,7 @@ export default function UserAvatar() {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
   const [accessModalOpen, setAccessModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [imgError, setImgError] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -311,6 +313,10 @@ export default function UserAvatar() {
 
   const bgColor = getAvatarColor(email);
   const appRole = profile?.appRole;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -412,12 +418,15 @@ export default function UserAvatar() {
         </div>
       )}
 
-      {accessModalOpen && (
-        <AccessPermissionsModal
-          currentRole={appRole}
-          onClose={() => setAccessModalOpen(false)}
-        />
-      )}
+      {accessModalOpen && mounted
+        ? createPortal(
+            <AccessPermissionsModal
+              currentRole={appRole}
+              onClose={() => setAccessModalOpen(false)}
+            />,
+            document.body
+          )
+        : null}
     </div>
   );
 }
