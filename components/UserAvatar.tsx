@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import type { UserProfile } from "@/types/user";
 
 type AccessLevel = "full" | "limited" | "none";
+type RoleColumn = "admin" | "buMember" | "internalViewer";
 
 interface PermissionRow {
   module: string;
@@ -86,6 +87,12 @@ const roleLabels: Record<UserProfile["appRole"], string> = {
   internal_viewer: "Internal Viewer",
 };
 
+const roleColumnByAppRole: Record<UserProfile["appRole"], RoleColumn> = {
+  admin: "admin",
+  bu_member: "buMember",
+  internal_viewer: "internalViewer",
+};
+
 const accessMeta: Record<AccessLevel, { label: string; className: string }> = {
   full: {
     label: "ได้",
@@ -111,6 +118,30 @@ function AccessBadge({ level }: { level: AccessLevel }) {
   );
 }
 
+function getRoleAccess(row: PermissionRow, role: UserProfile["appRole"]): AccessLevel {
+  return row[roleColumnByAppRole[role]];
+}
+
+function getRoleColumnClass(
+  column: RoleColumn,
+  currentRole: UserProfile["appRole"] | undefined,
+  rowIndex?: number
+) {
+  if (!currentRole || roleColumnByAppRole[currentRole] !== column) {
+    return "";
+  }
+
+  const isFirst = rowIndex === undefined || rowIndex === 0;
+  const isLast = rowIndex === permissionRows.length - 1;
+  return [
+    "bg-sky-400/[0.14]",
+    "border-x border-sky-300/45",
+    "shadow-[inset_0_0_0_1px_rgba(125,211,252,0.12)]",
+    isFirst ? "border-t rounded-t-xl" : "",
+    isLast ? "border-b rounded-b-xl" : "",
+  ].join(" ");
+}
+
 function AccessPermissionsModal({
   currentRole,
   onClose,
@@ -130,20 +161,23 @@ function AccessPermissionsModal({
   }, [onClose]);
 
   const roleLabel = currentRole ? roleLabels[currentRole] : "User";
+  const allowedRows = currentRole
+    ? permissionRows.filter((row) => getRoleAccess(row, currentRole) !== "none")
+    : [];
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/85 p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="access-permissions-title"
-      onMouseDown={onClose}
+      onClick={onClose}
     >
       <div
-        className="glass-card w-full max-w-5xl overflow-hidden rounded-2xl border border-sky-300/20 shadow-2xl shadow-slate-950/60"
-        onMouseDown={(event) => event.stopPropagation()}
+        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-sky-300/25 bg-[#071326] shadow-2xl shadow-slate-950/70 sm:max-h-[calc(100dvh-3rem)]"
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="border-b border-white/10 bg-white/[0.03] px-5 py-4 sm:px-6">
+        <div className="border-b border-sky-300/15 bg-[#0a1b34] px-5 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200/70">
@@ -159,7 +193,7 @@ function AccessPermissionsModal({
             </div>
             <button
               type="button"
-              className="glass-ghost px-3 py-2 text-sm font-medium"
+              className="rounded-xl border border-sky-300/25 bg-sky-400/10 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-400/18"
               onClick={onClose}
             >
               ปิด
@@ -167,30 +201,77 @@ function AccessPermissionsModal({
           </div>
         </div>
 
-        <div className="max-h-[70vh] overflow-auto p-4 sm:p-6">
-          <div className="overflow-hidden rounded-2xl border border-white/10">
-            <table className="w-full min-w-[760px] border-collapse bg-slate-950/25 text-left text-sm">
+        <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
+          {currentRole && (
+            <div className="mb-4 rounded-2xl border border-sky-300/25 bg-[#0b213f] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">สิทธิ์ของคุณ</p>
+                  <p className="mt-1 text-xs text-white/50">
+                    Module ที่ role {roleLabel} ใช้งานได้ในระบบตอนนี้
+                  </p>
+                </div>
+                <span className="inline-flex w-fit rounded-full border border-sky-300/35 bg-sky-400/12 px-3 py-1 text-xs font-semibold text-sky-100">
+                  {allowedRows.length} modules
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {allowedRows.map((row) => (
+                  <div
+                    key={row.module}
+                    className="rounded-xl border border-white/10 bg-[#081a32] px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-semibold text-white">{row.module}</span>
+                      <AccessBadge level={getRoleAccess(row, currentRole)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-hidden rounded-2xl border border-sky-300/20 bg-[#09172c]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] border-separate border-spacing-0 bg-[#09172c] text-left text-sm">
               <thead>
-                <tr className="border-b border-white/10 bg-sky-400/[0.08] text-xs uppercase tracking-[0.12em] text-white/55">
+                <tr className="text-xs uppercase tracking-[0.12em] text-white/60">
                   <th className="px-4 py-3 font-semibold">Module</th>
-                  <th className="px-4 py-3 text-center font-semibold">Admin</th>
-                  <th className="px-4 py-3 text-center font-semibold">BU Member</th>
-                  <th className="px-4 py-3 text-center font-semibold">Internal Viewer</th>
+                  <th className={`px-4 py-3 text-center font-semibold ${getRoleColumnClass("admin", currentRole)}`}>
+                    Admin
+                  </th>
+                  <th className={`px-4 py-3 text-center font-semibold ${getRoleColumnClass("buMember", currentRole)}`}>
+                    BU Member
+                  </th>
+                  <th className={`px-4 py-3 text-center font-semibold ${getRoleColumnClass("internalViewer", currentRole)}`}>
+                    Internal Viewer
+                  </th>
                   <th className="px-4 py-3 font-semibold">หมายเหตุ</th>
                 </tr>
               </thead>
               <tbody>
-                {permissionRows.map((row) => (
-                  <tr key={row.module} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.035]">
-                    <td className="px-4 py-4 font-semibold text-white">{row.module}</td>
-                    <td className="px-4 py-4 text-center"><AccessBadge level={row.admin} /></td>
-                    <td className="px-4 py-4 text-center"><AccessBadge level={row.buMember} /></td>
-                    <td className="px-4 py-4 text-center"><AccessBadge level={row.internalViewer} /></td>
-                    <td className="px-4 py-4 text-white/55">{row.note}</td>
+                {permissionRows.map((row, index) => (
+                  <tr key={row.module} className="group">
+                    <td className="border-t border-white/[0.06] px-4 py-4 font-semibold text-white group-hover:bg-white/[0.03]">
+                      {row.module}
+                    </td>
+                    <td className={`border-t border-white/[0.06] px-4 py-4 text-center group-hover:bg-white/[0.03] ${getRoleColumnClass("admin", currentRole, index)}`}>
+                      <AccessBadge level={row.admin} />
+                    </td>
+                    <td className={`border-t border-white/[0.06] px-4 py-4 text-center group-hover:bg-white/[0.03] ${getRoleColumnClass("buMember", currentRole, index)}`}>
+                      <AccessBadge level={row.buMember} />
+                    </td>
+                    <td className={`border-t border-white/[0.06] px-4 py-4 text-center group-hover:bg-white/[0.03] ${getRoleColumnClass("internalViewer", currentRole, index)}`}>
+                      <AccessBadge level={row.internalViewer} />
+                    </td>
+                    <td className="border-t border-white/[0.06] px-4 py-4 text-white/55 group-hover:bg-white/[0.03]">
+                      {row.note}
+                    </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         </div>
       </div>
