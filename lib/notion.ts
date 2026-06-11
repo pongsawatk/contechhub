@@ -551,12 +551,30 @@ export async function createQuoteSession(data: {
   const products = buildQuoteProducts(data.input)
   const productList = products.join(" + ") || "Transformation Service"
   const quoteName = `${data.input.customerName} - ${productList}`
+
+  // G-02: แยก recurring เป็น package vs add-on/top-up สำหรับ reporting
+  const addonTotal = data.input.selections.reduce(
+    (sum, selection) =>
+      sum +
+      selection.addons.reduce((addonSum, addon) => addonSum + addon.price, 0) +
+      (selection.topups ?? []).reduce(
+        (topupSum, topup) => topupSum + topup.unitPrice * topup.quantity,
+        0
+      ),
+    0
+  )
+  const packageSubtotal = data.breakdown.subtotal - addonTotal
+
   const summaryJson = JSON.stringify({
-    version: 1,
+    version: 2,
     lane: data.input.lane,
     products,
+    packageSubtotal,
+    addonTotal,
+    discountAmount: data.breakdown.discountAmount,
     annualTotal: data.breakdown.annualTotal,
     oneTimeTotal: data.breakdown.oneTimeTotal,
+    firstYearTotal: data.breakdown.firstYearTotal,
     finalPrice: data.breakdown.total,
     approvalRequired: data.breakdown.approvalRequired,
     hasTransformation: Boolean(data.input.transformationQuote),
@@ -586,16 +604,22 @@ export async function createQuoteSession(data: {
         multi_select: products.map((product) => ({ name: product })),
       },
       "Base Price (THB)": {
-        number: data.breakdown.subtotal,
+        number: packageSubtotal,
       },
       "Add-on Price (THB)": {
-        number: 0,
+        number: addonTotal,
       },
       "Discount (THB)": {
         number: data.breakdown.discountAmount,
       },
       "Final Price (THB)": {
         number: data.breakdown.total,
+      },
+      "One-time Total (THB)": {
+        number: data.breakdown.oneTimeTotal,
+      },
+      "First Year Total (THB)": {
+        number: data.breakdown.firstYearTotal,
       },
       "Discount Reason": {
         rich_text: [{ text: { content: data.input.discountReason || "" } }],
