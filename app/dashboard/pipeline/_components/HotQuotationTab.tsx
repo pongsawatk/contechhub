@@ -4,8 +4,13 @@ import { useRouter } from "next/navigation"
 import type { HotQuotation, Customer } from "@/types/pipeline"
 import type { UserProfile } from "@/types/user"
 import { formatTHB, formatDate, hotnessDisplay, stageColor, statusColor, HOT_QUOTATION_PRODUCTS, HOT_QUOTATION_STAGES } from "@/lib/pipeline-helpers"
-import { generateHotQuotationTemplate, downloadBlob } from "@/lib/excel-templates"
 import ExcelImportModal from "./ExcelImportModal"
+
+async function downloadTemplate() {
+  // dynamic import เพื่อไม่ให้ xlsx เข้า initial bundle ของหน้า pipeline
+  const { generateHotQuotationTemplate, downloadBlob } = await import("@/lib/excel-templates")
+  downloadBlob(generateHotQuotationTemplate(), "hot-quotation-template.xlsx")
+}
 
 interface Props {
   quotations: HotQuotation[]
@@ -89,7 +94,7 @@ export default function HotQuotationTab({ quotations, customers, currentUser }: 
         </div>
         {canImport && (
           <div className="flex gap-2">
-            <button onClick={() => downloadBlob(generateHotQuotationTemplate(), "hot-quotation-template.xlsx")} className="glass-ghost px-3 py-1.5 text-sm rounded-lg">📥 Template</button>
+            <button onClick={() => void downloadTemplate()} className="glass-ghost px-3 py-1.5 text-sm rounded-lg">📥 Template</button>
             <button onClick={() => setShowImport(true)} className="glass-btn px-3 py-1.5 text-sm rounded-lg">📤 Import</button>
           </div>
         )}

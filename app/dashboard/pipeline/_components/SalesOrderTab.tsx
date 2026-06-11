@@ -4,8 +4,13 @@ import { useRouter } from "next/navigation"
 import type { SalesOrder, Customer } from "@/types/pipeline"
 import type { UserProfile } from "@/types/user"
 import { formatTHB, formatDate, recognitionColor, REVENUE_TYPES } from "@/lib/pipeline-helpers"
-import { generateSalesOrderTemplate, downloadBlob } from "@/lib/excel-templates"
 import ExcelImportModal from "./ExcelImportModal"
+
+async function downloadTemplate() {
+  // dynamic import เพื่อไม่ให้ xlsx เข้า initial bundle ของหน้า pipeline
+  const { generateSalesOrderTemplate, downloadBlob } = await import("@/lib/excel-templates")
+  downloadBlob(generateSalesOrderTemplate(), "sales-order-template.xlsx")
+}
 import RevenueUpdateForm from "./RevenueUpdateForm"
 
 interface Props {
@@ -84,7 +89,7 @@ export default function SalesOrderTab({ orders, customers, currentUser }: Props)
         </div>
         {canImport && (
           <div className="flex gap-2">
-            <button onClick={() => downloadBlob(generateSalesOrderTemplate(), "sales-order-template.xlsx")} className="glass-ghost px-3 py-1.5 text-sm rounded-lg">📥 Template</button>
+            <button onClick={() => void downloadTemplate()} className="glass-ghost px-3 py-1.5 text-sm rounded-lg">📥 Template</button>
             <button onClick={() => setShowImport(true)} className="glass-btn px-3 py-1.5 text-sm rounded-lg">📤 Import</button>
           </div>
         )}

@@ -3,7 +3,6 @@
 
 import { useRef, useState } from "react"
 import type { Customer, ParsedHotQuotation, ParsedRow, ParsedSalesOrder } from "@/types/pipeline"
-import { parseHotQuotation, parseSalesOrder } from "@/lib/excel-parser"
 import ImportPreviewTable from "./ImportPreviewTable"
 import DuplicateWarning from "./DuplicateWarning"
 import CustomerAutoCreate from "./CustomerAutoCreate"
@@ -40,6 +39,8 @@ export default function ExcelImportModal({ type, existingKeys, customers, onClos
 
     try {
       const buffer = await selectedFile.arrayBuffer()
+      // dynamic import เพื่อไม่ให้ xlsx เข้า initial bundle ของหน้า pipeline
+      const { parseHotQuotation, parseSalesOrder } = await import("@/lib/excel-parser")
       const parsed = type === "hot-quotation" ? parseHotQuotation(buffer) : parseSalesOrder(buffer)
       setRows(parsed.all)
 
