@@ -1,36 +1,159 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Contech Hub
+
+Internal Web Application สำหรับทีม **Contech BU (Builk One Group)** — Command Center กลางสำหรับงานขาย, pricing, quote, revenue, KPI และ sales pipeline ปี 2026 (เป้ารายได้ **20M THB**)
+
+> 📘 **Single Source of Truth:** [Notion — Contech Hub Application Blueprint](https://app.notion.com/p/32b46733f68081beab2acc87dcb3e088) (อ่านก่อนเขียนโค้ดทุกครั้ง)
+> 📝 **Work log / changelog:** [`PROJECT_LOG.md`](./PROJECT_LOG.md)
+
+---
+
+## Tech Stack
+
+| Layer | Tech |
+| --- | --- |
+| Framework | Next.js `^15.3.4` (App Router, Server Components) |
+| UI | React `^19`, TypeScript `^5` (strict), Tailwind CSS `^3.4` (glassmorphism dark navy/green) |
+| Auth | Auth.js / `next-auth@^5.0.0-beta.30` — Microsoft Entra ID provider |
+| Data | Notion เป็น system of record — `@notionhq/client@^5.9.0` (notionVersion `2026-03-11`) |
+| Excel | `xlsx` (SheetJS) `^0.18.5` — pipeline import + template |
+| AI (Chatbot) | Gemini 2.5 Flash (default) → Claude Haiku 4.5 (escalation) |
+| Fonts | Sarabun (ไทย) + Inter ผ่าน `next/font/google` |
+
+> ⚠️ **ห้าม install npm package ใหม่โดยไม่ได้รับอนุญาต** — `xlsx` เป็น dependency เดียวนอกเหนือ core ที่อนุมัติแล้ว
+
+---
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. ติดตั้ง dependencies
+npm install
+
+# 2. สร้าง .env.local (ดู Environment Variables ด้านล่าง / VERCEL_ENV_SETUP.md)
+
+# 3. dev server
+npm run dev          # http://localhost:3000
+
+# ก่อน push เสมอ
+npm run lint         # ต้อง 0 warnings/errors
+npm run build        # ต้อง 0 errors
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/
+  login/  unauthorized/            หน้า auth
+  dashboard/
+    pricing/      Phase 2 — Pricing display
+    calculator/   Phase 3 — Quote calculator (+ export/, _components/ step flow)
+    revenue/      Phase 4 — Revenue tracker
+    kpi/          Phase 4 — KPI dashboard
+    pipeline/     Phase 4.5 — Sales pipeline + Excel import
+    playbook/     Phase 4.6 — BU Playbook
+    chatbot/      Phase 5 — Pricing chatbot
+  api/
+    auth/[...nextauth]            Auth.js handler
+    me/photo                      MS Graph profile photo proxy
+    internal/                     ทุก business API (validate session ก่อนเสมอ)
+lib/
+  notion.ts                       Notion queries รวมศูนย์ (รวม quote create/read)
+  pricing-engine.ts               Pricing business logic (Form + Chatbot ใช้ร่วม)
+  pricing-utils.tsx  features.ts  revenue-targets.ts
+  excel-parser.ts  excel-templates.ts  pipeline-helpers.ts
+  chatbot-router.ts  chatbot-prompt.ts  chatbot-parser.ts  chatbot-notion.ts
+  playbook-data.ts  quote-export.ts  api-auth.ts (hasBuAccess)
+types/    pricing · calculator · kpi · revenue · pipeline · quote · chatbot · user · next-auth.d
+components/   NavBar · UserAvatar · kpi/*
+middleware.ts   auth.ts            route protection + Auth.js config
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture Notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Server Components เป็น default** — ใส่ `'use client'` เฉพาะที่ต้องการ state/interaction
+- **Notion queries** รวมที่ `lib/notion.ts` — ทุก DB ID มาจาก env (ดู §Environment)
+- **API routes** อยู่ที่ `app/api/internal/*` ทุกตัว validate session ก่อน:
+  ```typescript
+  const session = await auth()
+  if (!session?.user?.profile) return NextResponse.json({}, { status: 401 })
+  const { appRole, email } = session.user.profile
+  ```
+- **Role-level authorization** — GET ของ KPI / Revenue / Pipeline enforce `hasBuAccess(session)` ; KPI `PATCH` จำกัด accountable หรือ admin ; Revenue `POST/PATCH` มี month-lock guard
+- **Pricing logic** อยู่ที่ `lib/pricing-engine.ts` ที่เดียว ใช้ทั้ง form และ chatbot
+- **Feature flags** ที่ `lib/features.ts` — เปิด/ปิด feature ที่ไฟล์เดียว NavBar/Dashboard ซ่อน/แสดงตามอัตโนมัติ
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Roles (จาก Users & Access DB)
 
-## Deploy on Vercel
+| Role | ใคร | สิทธิ์ |
+| --- | --- | --- |
+| `admin` | จ้อ, เอก | ทุก feature + admin config |
+| `bu_member` | เติ้ล, ฝน, แจ๊พ, บอส, เจมจิ, เต้ | ทุก feature ยกเว้น admin config |
+| `internal_viewer` | Builk staff นอก BU | Pricing display เท่านั้น |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notion Databases
+
+ทุก DB อยู่ใต้ page **Contech Operation** (`32346733-f680-8027-9845-e5b370bd4c20`) — schema เต็มอยู่ใน Blueprint §4
+
+| DB | ID (env) |
+| --- | --- |
+| Users & Access | `NOTION_USERS_DB_ID` |
+| Pricing & Packages | `NOTION_PRICING_DB_ID` |
+| KPI Tracker | `NOTION_KPI_DB_ID` |
+| Revenue Tracker | `NOTION_REVENUE_DB_ID` |
+| Quote Sessions | `NOTION_QUOTES_DB_ID` |
+| Customer Master | `NOTION_CUSTOMER_DB_ID` |
+| Hot Quotation | `NOTION_HOT_QUOTATION_DB_ID` |
+| Sales Order | `NOTION_SALES_ORDER_DB_ID` |
+| Knowledge Base (Chatbot KB, 50 entries) | `NOTION_KNOWLEDGE_DB_ID` |
+| Chat Sessions | `NOTION_CHAT_SESSIONS_DB_ID` |
+| Lead Intake (n8n + AI qualification) | `NOTION_LEAD_INTAKE_DB_ID` |
+
+---
+
+## Environment Variables
+
+ดูรายการเต็ม + ค่า DB ID ที่ [`VERCEL_ENV_SETUP.md`](./VERCEL_ENV_SETUP.md) สรุปกลุ่มหลัก:
+
+```bash
+# Auth
+AUTH_SECRET=                 # openssl rand -base64 32
+AUTH_URL=                    # https://contech-hub.vercel.app
+
+# Microsoft Entra ID
+AZURE_AD_CLIENT_ID=
+AZURE_AD_CLIENT_SECRET=      # ⚠️ rotate ที่ Azure Portal
+AZURE_AD_TENANT_ID=
+
+# Notion (token + DB IDs ทั้งหมด — ดู VERCEL_ENV_SETUP.md)
+NOTION_TOKEN=                # ntn_... จาก notion.so/my-integrations
+
+# Phase 5 Chatbot
+GOOGLE_AI_API_KEY=           # Gemini 2.5 Flash
+ANTHROPIC_API_KEY=           # Claude Haiku 4.5
+NOTION_CHAT_SESSIONS_DB_ID=
+```
+
+---
+
+## Deployment
+
+- GitHub `main` → Vercel auto-deploy (~2–3 นาที)
+- ใส่ env ครบทั้ง Production + Preview + Development
+- Azure AD ต้องมี redirect URI ทั้ง dev + prod (intentional):
+  - `http://localhost:3000/api/auth/callback/microsoft-entra-id`
+  - `https://contech-hub.vercel.app/api/auth/callback/microsoft-entra-id`
+- หลัง deploy ครั้งแรก: ทำตาม [`POST_DEPLOY_CHECKLIST.md`](./POST_DEPLOY_CHECKLIST.md)
+
+**Workflow:** แก้โค้ด → `npm run build` (0 errors) → `git commit` → `git push origin main` → Vercel deploy → ทดสอบหน้างาน
+
+---
+
+## Known Gaps
+
+ดู [`PROJECT_LOG.md` §4](./PROJECT_LOG.md) — สำคัญที่สุดคือ **G-01** server-side quote recalculation (ตอนนี้ `POST /api/internal/quotes` ยัง trust ค่า breakdown จาก client)
