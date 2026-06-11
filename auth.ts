@@ -62,7 +62,7 @@ async function refreshMicrosoftAccessToken(token: {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  debug: true,
+  debug: process.env.NODE_ENV === "development",
   providers: [
     MicrosoftEntraID({
       clientId: process.env.AZURE_AD_CLIENT_ID!,
@@ -76,19 +76,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
-      console.log("NextAuth signIn callback triggered", { userEmail: user?.email, hasAccount: !!account, hasProfile: !!profile })
+    async signIn({ user }) {
       try {
         const email = user?.email ?? ""
         if (!email.endsWith("@builk.com")) {
-          console.log("Gate 1 failed: Not @builk.com")
           return false
         }
 
         const notionProfile = await getUserProfile(email)
-        console.log("Notion profile retrieved:", notionProfile)
         if (!notionProfile || !notionProfile.active) {
-          console.log("Gate 2 failed: Notion profile not found or inactive")
           return false
         }
 

@@ -11,9 +11,16 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/login", req.url))
   }
 
-  // internal_viewer blocked routes
+  // internal_viewer blocked routes — เห็นเฉพาะ Pricing Display ตาม Blueprint
   if (appRole === "internal_viewer") {
-    const blocked = ["/dashboard/calculator", "/dashboard/kpi", "/dashboard/revenue"]
+    const blocked = [
+      "/dashboard/calculator",
+      "/dashboard/kpi",
+      "/dashboard/revenue",
+      "/dashboard/pipeline",
+      "/dashboard/chatbot",
+      "/dashboard/playbook",
+    ]
     if (blocked.some((route) => pathname.startsWith(route))) {
       return NextResponse.redirect(new URL("/unauthorized", req.url))
     }
