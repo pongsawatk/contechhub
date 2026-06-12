@@ -59,10 +59,13 @@ app/
     me/photo                      MS Graph profile photo proxy
     internal/                     ทุก business API (validate session ก่อนเสมอ)
 lib/
-  notion.ts                       Notion queries รวมศูนย์ (รวม quote create/read)
+  notion.ts                       Barrel — Notion queries แยกตาม domain ใน notion/
+  notion/                         client · users · pricing · knowledge · kpi · revenue · quotes · pipeline
   pricing-engine.ts               Pricing business logic (Form + Chatbot ใช้ร่วม)
+  quote-server.ts                 Server-side quote validation + recalculation (G-01)
+  format.ts                       formatTHB / formatTHBCompact / formatKpiValue
   pricing-utils.tsx  features.ts  revenue-targets.ts
-  excel-parser.ts  excel-templates.ts  pipeline-helpers.ts
+  excel-parser.ts  excel-templates.ts  pipeline-helpers.ts   (xlsx ถูก lazy-load)
   chatbot-router.ts  chatbot-prompt.ts  chatbot-parser.ts  chatbot-notion.ts
   playbook-data.ts  quote-export.ts  api-auth.ts (hasBuAccess)
 types/    pricing · calculator · kpi · revenue · pipeline · quote · chatbot · user · next-auth.d
@@ -83,8 +86,9 @@ middleware.ts   auth.ts            route protection + Auth.js config
   const { appRole, email } = session.user.profile
   ```
 - **Role-level authorization** — GET ของ KPI / Revenue / Pipeline enforce `hasBuAccess(session)` ; KPI `PATCH` จำกัด accountable หรือ admin ; Revenue `POST/PATCH` มี month-lock guard
-- **Pricing logic** อยู่ที่ `lib/pricing-engine.ts` ที่เดียว ใช้ทั้ง form และ chatbot
-- **Feature flags** ที่ `lib/features.ts` — เปิด/ปิด feature ที่ไฟล์เดียว NavBar/Dashboard ซ่อน/แสดงตามอัตโนมัติ
+- **Quote integrity (G-01)** — `POST /api/internal/quotes` ไม่ trust breakdown จาก client: `lib/quote-server.ts` re-resolve ราคาทุกตัวจาก Pricing DB ด้วย item ID แล้ว recalculate ฝั่ง server ก่อน save
+- **Pricing logic** อยู่ที่ `lib/pricing-engine.ts` ที่เดียว ใช้ทั้ง form / chatbot / server recalculation
+- **Feature flags** ที่ `lib/features.ts` — ปิด flag แล้วทั้ง NavBar/Dashboard ซ่อนลิงก์ และ page redirect กลับ `/dashboard`
 
 ### Roles (จาก Users & Access DB)
 
@@ -156,4 +160,4 @@ NOTION_CHAT_SESSIONS_DB_ID=
 
 ## Known Gaps
 
-ดู [`PROJECT_LOG.md` §4](./PROJECT_LOG.md) — สำคัญที่สุดคือ **G-01** server-side quote recalculation (ตอนนี้ `POST /api/internal/quotes` ยัง trust ค่า breakdown จาก client)
+ดู [`PROJECT_LOG.md` §4](./PROJECT_LOG.md) — G-01 (server-side quote recalculation) และ G-02 (normalized quote fields) ปิดแล้ว 12 Jun 2026 ; ที่เหลือคือ automated tests, OpenRouter migration สำหรับ chatbot และ `jose` Edge warning (G-04)

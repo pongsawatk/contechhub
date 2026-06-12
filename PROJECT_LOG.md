@@ -1,7 +1,7 @@
 # Contech Hub — Project Work Log
 
 > บันทึกการทำงานของโปรเจกต์ Contech Hub (development history / changelog)
-> **Last Updated:** 7 June 2026 · **Owner:** จ้อ (Head of Contech BU)
+> **Last Updated:** 12 June 2026 · **Owner:** จ้อ (Head of Contech BU)
 > **Single Source of Truth:** [Notion — Contech Hub Application Blueprint](https://app.notion.com/p/32b46733f68081beab2acc87dcb3e088) ภายใต้ page [Contech Operation](https://app.notion.com/p/32346733f68080279845e5b370bd4c20)
 
 เอกสารนี้สรุป "งานที่ทำไปแล้ว" ของโปรเจกต์ ทั้งในมุม phase และมุม commit history เพื่อให้ทีม + AI Copilot เห็นภาพรวมว่าระบบเดินทางมาถึงจุดไหน อ้างอิงจาก git history (15 Mar – 4 May 2026) และ Notion Blueprint (อัปเดต 3 May 2026)
@@ -12,7 +12,7 @@
 
 Contech Hub คือ Internal Web App สำหรับทีม Contech BU (Builk One Group) 8 คน ทำหน้าที่เป็น Command Center กลางสำหรับงานขาย, pricing, revenue และ KPI ปี 2026 (เป้ารายได้ **20M THB**)
 
-ทุก feature flag ใน `lib/features.ts` เปิด `true` ทั้งหมดแล้ว — โปรเจกต์เดินผ่าน Phase 0–5 + 4.5/4.6 ครบ เหลือเพียงงาน hardening ฝั่ง server (ดู §4)
+ทุก feature flag ใน `lib/features.ts` เปิด `true` ทั้งหมดแล้ว — โปรเจกต์เดินผ่าน Phase 0–5 + 4.5/4.6 ครบ และผ่าน Hardening + Refactor pass (12 Jun 2026) ที่ปิด G-01/G-02 แล้ว (ดู §4)
 
 | Phase | Feature | สถานะ |
 | --- | --- | --- |
@@ -88,6 +88,13 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 - เพิ่ม package terms / What's Included จาก Notion เข้าใบเสนอราคา (แก้ปัญหาใบเสนอราคา "โล้น") + sync Blueprint
 - Access Permissions modal ใน user menu (เพิ่ม → refine layout → improve presentation)
 
+### June 2026 — Hardening + Refactor Pass (12 Jun 2026)
+- **G-01 ✅** Server-side quote recalculation — `lib/quote-server.ts` validate payload + re-resolve ราคาทุกตัวจาก Pricing DB ด้วย item ID แล้ว recalculate ด้วย pricing engine ฝั่ง server (ไม่ trust breakdown จาก client); `POST /api/internal/quotes` ตอบ 400 เมื่อ payload ไม่ถูกต้อง
+- **G-02 ✅** Normalized quote fields — Base/Add-on split จริง + เพิ่ม `One-time Total (THB)`, `First Year Total (THB)` ใน Quote Sessions DB; Quote Summary JSON เป็น version 2
+- **Security/hygiene** — NextAuth debug เฉพาะ dev + ตัด PII logging ตอน sign-in; middleware บล็อก `internal_viewer` ครบทุก route (เพิ่ม pipeline/chatbot/playbook); เลิก track `.env` + ลบไฟล์ debug debris ออกจาก repo
+- **Performance** — xlsx lazy-load ผ่าน dynamic import: หน้า pipeline ลดจาก 149 kB เหลือ 8.2 kB (First Load 254→114 kB)
+- **Refactor** — แยก `lib/notion.ts` (1,020 บรรทัด) เป็น domain modules ใน `lib/notion/` (barrel re-export ที่เดิม); user lookup cache มี TTL 5 นาที; รวมศูนย์ number formatting ที่ `lib/format.ts`; feature flags บังคับที่ page level ทุก feature
+
 ---
 
 ## 3. Commit History (git, ย่อ)
@@ -104,6 +111,8 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 | 2026-03-24 | แก้ bug Excel import |
 | 2026-03-29 | Phase 4.6 Playbook + sidebar nav |
 | 2026-05-04 | Package terms ในใบเสนอราคา + sync blueprint ; access permissions modal (3 commits) |
+| 2026-06-11 | docs: README ใหม่ + PROJECT_LOG + refresh product docs |
+| 2026-06-12 | Hardening + Refactor pass: G-01 server-side quote recalculation ; G-02 normalized fields ; auth/middleware hygiene ; xlsx lazy-load ; แยก lib/notion/ ; lib/format.ts ; feature flags ที่ page level |
 
 ---
 
@@ -111,14 +120,16 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 
 | # | งาน | ระดับ | รายละเอียด |
 | --- | --- | --- | --- |
-| G-01 | Server-side quote integrity | 🔴 High | `POST /api/internal/quotes` ยังรับ `breakdown` จาก client — ควร recalculate ฝั่ง server ด้วย Pricing DB ก่อน save |
-| G-02 | Quote reporting fields | 🟡 Medium | `Add-on Price (THB)` ยัง set เป็น 0 — ควรแยก recurring / add-on / one-time / discount / first-year total เป็น normalized fields |
-| G-03 | README onboarding | 🟢 Low → ✅ | แก้แล้วใน README.md ฉบับใหม่ (7 Jun 2026) |
+| G-01 | Server-side quote integrity | ✅ Resolved (12 Jun 2026) | `lib/quote-server.ts` validate + recalculate ฝั่ง server ด้วย Pricing DB — ไม่ trust breakdown จาก client |
+| G-02 | Quote reporting fields | ✅ Resolved (12 Jun 2026) | Base/Add-on split จริง + เพิ่ม `One-time Total (THB)`, `First Year Total (THB)` ใน Quote Sessions DB |
+| G-03 | README onboarding | ✅ Resolved (7 Jun 2026) | README.md ฉบับใหม่ + PROJECT_LOG.md |
 | G-04 | Auth.js Edge warning | 🟢 Low | build ผ่าน แต่ยังมี `jose` warning เรื่อง CompressionStream/DecompressionStream ใน Edge Runtime |
+| — | Automated tests (pricing engine + quote save) | 🟡 Medium | ยังไม่มี test ใน repo — pricing engine + `lib/quote-server.ts` เป็น candidate แรก |
+| — | Chatbot ย้ายไป OpenRouter + multi-model routing | 🟢 Planned | แผนของจ้อ: ใช้ key จาก OpenRouter + route คำถามไปหลาย AI model (แทนการแก้ Gemini key ใน URL) |
 | — | Staff Chatbot (Phase 6) | 🟢 Backlog | role-aware AI ; KB source: Verified KB → Product → Pricing → Sales Blueprint |
 | — | Admin/Config Page, Audit Log | ⏳ Deferred | |
 
-**Next priority:** Server-side quote recalculation + normalized quote reporting fields (G-01, G-02)
+**Next priority:** Automated tests รอบ pricing engine + quote save flow และเตรียม OpenRouter migration สำหรับ chatbot
 
 ---
 
