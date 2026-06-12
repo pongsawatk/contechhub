@@ -1,9 +1,12 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
+import { FEATURES } from '@/lib/features'
 import ChatWindow from './_components/ChatWindow'
 import PricingCardPanel from './_components/PricingCardPanel'
 
 export default async function ChatbotPage() {
+  if (!FEATURES.chatbot) redirect('/dashboard')
+
   const session = await auth()
   if (!session?.user?.profile) redirect('/login')
 

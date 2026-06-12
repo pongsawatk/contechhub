@@ -1,11 +1,14 @@
 ﻿import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { getRevenueEntries } from "@/lib/notion"
+import { FEATURES } from "@/lib/features"
 import RevenueDisplay from "./_components/RevenueDisplay"
 
 export const revalidate = 0
 
 export default async function RevenuePage() {
+  if (!FEATURES.revenue) redirect("/dashboard")
+
   const session = await auth()
   if (!session?.user?.profile) redirect("/login")
   const appRole = session.user.profile.appRole

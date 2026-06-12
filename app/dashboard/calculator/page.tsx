@@ -1,5 +1,7 @@
+import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { getPricingPackages, getQuoteSession } from '@/lib/notion'
+import { FEATURES } from '@/lib/features'
 import CalculatorShell from './_components/CalculatorShell'
 
 export default async function CalculatorPage({
@@ -7,6 +9,8 @@ export default async function CalculatorPage({
 }: {
   searchParams: Promise<{ quote?: string; prefill?: string }>
 }) {
+  if (!FEATURES.calculator) redirect('/dashboard')
+
   const session = await auth()
   const isContechBU = session?.user?.profile?.buMembership === 'Contech BU'
   const pricingItems = await getPricingPackages(isContechBU)
