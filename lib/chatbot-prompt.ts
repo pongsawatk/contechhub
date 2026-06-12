@@ -1,5 +1,6 @@
 import type { KBEntry } from '@/lib/notion'
 import type { PricingItem } from '@/types/pricing'
+import { formatTHB } from '@/lib/format'
 
 interface UserProfile {
   displayName: string
@@ -25,8 +26,8 @@ function formatPricingContext(items: PricingItem[]): string {
         .map((item) => {
           const price =
             item.enterprisePriceMin !== null && item.enterprisePriceMin !== undefined
-              ? `${item.enterprisePriceMin.toLocaleString('th-TH')}–${(item.enterprisePriceMax ?? 0).toLocaleString('th-TH')} บาท/ปี`
-              : `${(item.price ?? 0).toLocaleString('th-TH')} บาท`
+              ? `${formatTHB(item.enterprisePriceMin)}–${formatTHB(item.enterprisePriceMax ?? 0)} บาท/ปี`
+              : `${formatTHB(item.price ?? 0)} บาท`
           const billing = item.billing ?? ''
           const notes = item.notes ? ` (${item.notes})` : ''
           return `  - ${item.packageName}: ${price} [${billing}]${notes}`

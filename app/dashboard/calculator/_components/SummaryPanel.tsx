@@ -1,14 +1,11 @@
 import type { PriceBreakdown, CalculatorInput, LineItem } from '@/types/calculator'
 import { isEnterprisePackage } from '@/lib/pricing-engine'
 import SummaryLineItem from './SummaryLineItem'
+import { formatTHB } from '@/lib/format'
 
 interface SummaryPanelProps {
   breakdown: PriceBreakdown
   input: CalculatorInput
-}
-
-function formatTHB(n: number): string {
-  return n.toLocaleString('th-TH')
 }
 
 function getEnterprisePriceRange(selection: CalculatorInput['selections'][number]): string {

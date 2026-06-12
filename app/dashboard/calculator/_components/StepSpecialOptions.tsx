@@ -3,16 +3,13 @@
 import type { CalculatorInput, PriceBreakdown } from '@/types/calculator'
 import type { PricingItem } from '@/types/pricing'
 import WarningBanner from './WarningBanner'
+import { formatTHB } from '@/lib/format'
 
 interface StepSpecialOptionsProps {
   input: CalculatorInput
   breakdown: PriceBreakdown
   pricingItems: PricingItem[]
   onChange: (patch: Partial<CalculatorInput>) => void
-}
-
-function formatTHB(n: number): string {
-  return n.toLocaleString('th-TH')
 }
 
 function getTrainingBenefit(packageName: string): string {

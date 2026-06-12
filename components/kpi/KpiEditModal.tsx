@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import type { KpiRecord } from "@/types/kpi"
+import { formatKpiValue as formatValue } from "@/lib/format"
 
 interface KpiEditModalProps {
   entry: KpiRecord | null
@@ -16,14 +17,6 @@ function getActualLabel(entry: KpiRecord) {
   }
 
   return entry.unit ? `ผลจริง (${entry.unit})` : "ผลจริง"
-}
-
-function formatValue(value: number | null, unit: string, isPercent: boolean): string {
-  if (value === null) return "-"
-  if (isPercent || unit === "%") return `${value}%`
-  if (unit === "THB") return `฿${value.toLocaleString("th-TH")}`
-  if (unit === "x") return `${value}x`
-  return `${value.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`
 }
 
 function formatPeriodStart(periodStart: string | null): string {

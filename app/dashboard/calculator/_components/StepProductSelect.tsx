@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import type { CalculatorInput, ProductSelection, TransformationQuote } from '@/types/calculator'
+import { formatTHB } from '@/lib/format'
 
 interface StepProductSelectProps {
   input: CalculatorInput
@@ -173,7 +174,7 @@ export default function StepProductSelect({ input, onChange }: StepProductSelect
                     <p className="text-white/50 text-xs">
                       Starts at{' '}
                       <span className="text-white/75 font-medium">
-                        {product.startingPrice.toLocaleString('th-TH')}
+                        {formatTHB(product.startingPrice)}
                       </span>{' '}
                       THB/year
                     </p>

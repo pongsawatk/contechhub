@@ -1,4 +1,5 @@
 import type { PricingItem } from '@/types/pricing'
+import { formatTHB } from '@/lib/format'
 
 export interface ProductConfig {
   color: string
@@ -67,7 +68,7 @@ function slugifyProductName(product: string): string {
 }
 
 export function formatNumber(n: number): string {
-  return new Intl.NumberFormat('th-TH').format(n)
+  return formatTHB(n)
 }
 
 export function formatBilling(billing: string): string {

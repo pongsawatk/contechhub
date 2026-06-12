@@ -4,6 +4,7 @@ import type { CalculatorInput, ProductSelection, AddonItem, TopupSelection } fro
 import type { PricingItem } from '@/types/pricing'
 import HintBanner from './HintBanner'
 import { calculate, itemAppliesTo, isEnterprisePackage, getPackagePrice } from '@/lib/pricing-engine'
+import { formatTHB } from '@/lib/format'
 
 interface StepPackageConfigProps {
   input: CalculatorInput
@@ -22,10 +23,6 @@ function hexToRgba(hex: string, alpha: number) {
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-function formatTHB(n: number): string {
-  return n.toLocaleString('th-TH')
 }
 
 function getMandatoryItems(allPricingItems: PricingItem[], selection: ProductSelection): PricingItem[] {

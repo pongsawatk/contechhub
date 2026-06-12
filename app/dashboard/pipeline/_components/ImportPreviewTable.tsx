@@ -1,5 +1,6 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ParsedRow } from "@/types/pipeline"
+import { formatTHB } from "@/lib/format"
 
 interface Props {
   rows: ParsedRow[]
@@ -52,14 +53,14 @@ export default function ImportPreviewTable({ rows, type }: Props) {
                     <td className="px-2 py-1.5 text-white/80">{d.quotationNo || "-"}</td>
                     <td className="px-2 py-1.5 text-white/70">{d.product || "-"}</td>
                     <td className="px-2 py-1.5 text-white/70 max-w-[120px] truncate">{d.companyName || "-"}</td>
-                    <td className="px-2 py-1.5 text-right text-accent-cyan">{d.quotationAmount?.toLocaleString() || "0"}</td>
+                    <td className="px-2 py-1.5 text-right text-accent-cyan">{formatTHB(d.quotationAmount ?? 0)}</td>
                     <td className="px-2 py-1.5 text-white/60">{d.stage || "-"}</td>
                   </>
                 ) : (
                   <>
                     <td className="px-2 py-1.5 text-white/80">{d.orderNo || "-"}</td>
                     <td className="px-2 py-1.5 text-white/70 max-w-[120px] truncate">{d.companyName || "-"}</td>
-                    <td className="px-2 py-1.5 text-right text-accent-cyan">{d.orderAmount?.toLocaleString() || "0"}</td>
+                    <td className="px-2 py-1.5 text-right text-accent-cyan">{formatTHB(d.orderAmount ?? 0)}</td>
                     <td className="px-2 py-1.5 text-white/60">{d.revenueType || "-"}</td>
                     <td className="px-2 py-1.5 text-white/60">{d.closeDate || "-"}</td>
                   </>

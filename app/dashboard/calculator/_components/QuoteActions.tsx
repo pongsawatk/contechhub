@@ -5,6 +5,7 @@ import type { CalculatorInput, PriceBreakdown } from '@/types/calculator'
 import type { PricingItem } from '@/types/pricing'
 import type { UserProfile } from '@/types/user'
 import { buildPackageExportDetails } from '@/lib/quote-export'
+import { formatTHB } from '@/lib/format'
 
 interface QuoteActionsProps {
   breakdown: PriceBreakdown
@@ -14,10 +15,6 @@ interface QuoteActionsProps {
   isSaving: boolean
   savedQuoteId: string | null
   onSave: () => Promise<void>
-}
-
-function formatTHB(n: number): string {
-  return n.toLocaleString('th-TH')
 }
 
 function formatClipboardLine(price: number, isDiscount?: boolean, isWaived?: boolean, isOneTime?: boolean) {

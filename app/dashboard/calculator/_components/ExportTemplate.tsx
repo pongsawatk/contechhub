@@ -1,6 +1,7 @@
 import type { CalculatorInput, PriceBreakdown } from '@/types/calculator'
 import type { UserProfile } from '@/types/user'
 import type { PackageExportDetail } from '@/types/quote'
+import { formatTHB } from '@/lib/format'
 
 interface ExportTemplateProps {
   input: CalculatorInput
@@ -9,10 +10,6 @@ interface ExportTemplateProps {
   date?: string
   quoteId?: string
   packageDetails?: PackageExportDetail[]
-}
-
-function formatTHB(n: number): string {
-  return n.toLocaleString('th-TH')
 }
 
 function formatItemPrice(breakdownItem: PriceBreakdown['lineItems'][number]) {

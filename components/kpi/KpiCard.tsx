@@ -2,6 +2,7 @@
 
 import type { KpiRecord } from "@/types/kpi"
 import AccountableAvatar from "@/components/kpi/AccountableAvatar"
+import { formatKpiValue as formatValue } from "@/lib/format"
 
 interface KpiCardProps {
   entry: KpiRecord
@@ -22,14 +23,6 @@ const statusColor: Record<string, string> = {
   "At Risk": "bg-amber-500/15 text-amber-400",
   "Off Track": "bg-red-500/15 text-red-400",
   Completed: "bg-blue-500/15 text-blue-400",
-}
-
-function formatValue(value: number | null, unit: string, isPercent: boolean): string {
-  if (value === null) return "-"
-  if (isPercent || unit === "%") return `${value}%`
-  if (unit === "THB") return `฿${value.toLocaleString("th-TH")}`
-  if (unit === "x") return `${value}x`
-  return `${value.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`
 }
 
 function formatThaiDate(date: string | null): string {

@@ -1,16 +1,11 @@
 ﻿import type { RevenueEntry } from "@/types/revenue"
 import { MONTHS_ORDER, MONTH_NAMES_TH, MONTHLY_TARGETS } from "@/lib/revenue-targets"
+import { formatTHBCompact as formatTHB } from "@/lib/format"
 
 interface Props {
   entries: RevenueEntry[]
   selectedMonth: string
   onSelect: (m: string) => void
-}
-
-function formatTHB(n: number) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M"
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + "K"
-  return n.toLocaleString()
 }
 
 export default function MonthGrid({ entries, selectedMonth, onSelect }: Props) {

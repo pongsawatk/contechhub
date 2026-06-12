@@ -2,6 +2,7 @@
 
 import type { CalculatorInput, TransformationQuote, ServiceSelection } from '@/types/calculator'
 import type { PricingItem } from '@/types/pricing'
+import { formatTHB as formatNumber } from '@/lib/format'
 
 interface StepServicesProps {
   input: CalculatorInput
@@ -14,10 +15,6 @@ const ENGAGEMENT_MODELS = [
   { id: 'project' as const, icon: '📋', name: 'Project-based', duration: '1–3 เดือน' },
   { id: 'program' as const, icon: '🚀', name: 'Transformation', duration: '3 เดือน+' },
 ]
-
-function formatNumber(n: number): string {
-  return n.toLocaleString('th-TH')
-}
 
 function billingLabel(billing: string): string {
   return (

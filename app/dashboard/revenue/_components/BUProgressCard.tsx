@@ -1,14 +1,9 @@
 ﻿import type { RevenueEntry } from "@/types/revenue"
 import { MONTHLY_TARGETS, ANNUAL_TARGET, MONTHS_ORDER, MONTH_SHORT_TH } from "@/lib/revenue-targets"
+import { formatTHBCompact as formatTHB } from "@/lib/format"
 
 interface Props {
   entries: RevenueEntry[]
-}
-
-function formatTHB(n: number) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M"
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + "K"
-  return n.toLocaleString()
 }
 
 export default function BUProgressCard({ entries }: Props) {

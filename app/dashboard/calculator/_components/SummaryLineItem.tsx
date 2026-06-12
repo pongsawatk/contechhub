@@ -1,11 +1,8 @@
 import type { LineItem } from '@/types/calculator'
+import { formatTHB } from '@/lib/format'
 
 interface SummaryLineItemProps {
   item: LineItem
-}
-
-function formatTHB(n: number): string {
-  return n.toLocaleString('th-TH')
 }
 
 export default function SummaryLineItem({ item }: SummaryLineItemProps) {

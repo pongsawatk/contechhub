@@ -10,15 +10,7 @@ export const HOTNESS_MAP: Record<string, string> = {
   "4": "4 \u2014 \u0e23\u0e49\u0e2d\u0e19",
 }
 
-export function formatTHB(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M"
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + "K"
-  return n.toLocaleString()
-}
-
-export function formatTHBFull(n: number): string {
-  return n.toLocaleString("th-TH")
-}
+export { formatTHBCompact as formatTHB, formatTHB as formatTHBFull } from "@/lib/format"
 
 export function formatDate(d: string | null): string {
   if (!d) return "-"

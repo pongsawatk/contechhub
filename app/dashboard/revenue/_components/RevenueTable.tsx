@@ -1,13 +1,10 @@
 ﻿import type { RevenueEntry } from "@/types/revenue"
+import { formatTHB } from "@/lib/format"
 
 interface Props {
   entries: RevenueEntry[]
   canEdit: boolean
   onEdit: (entry: RevenueEntry) => void
-}
-
-function formatTHB(n: number) {
-  return n.toLocaleString("th-TH")
 }
 
 const STATUS_COLORS: Record<string, string> = {

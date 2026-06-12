@@ -7,6 +7,7 @@ import type {
   ProductSelection,
 } from '@/types/calculator'
 import type { PricingItem } from '@/types/pricing'
+import { formatTHB } from '@/lib/format'
 
 interface EnterpriseAware {
   enterprisePriceMin?: number | null
@@ -22,10 +23,6 @@ export interface PackagePrice {
   base: number
   premium?: number
   anchor?: number
-}
-
-function formatTHB(n: number): string {
-  return n.toLocaleString('th-TH')
 }
 
 function normalizePackageName(value: string): string {
