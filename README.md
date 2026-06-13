@@ -16,7 +16,7 @@ Internal Web Application สำหรับทีม **Contech BU (Builk One Gro
 | Auth | Auth.js / `next-auth@^5.0.0-beta.30` — Microsoft Entra ID provider |
 | Data | Notion เป็น system of record — `@notionhq/client@^5.9.0` (notionVersion `2026-03-11`) |
 | Excel | `xlsx` (SheetJS) `^0.18.5` — pipeline import + template |
-| AI (Chatbot) | Gemini 2.5 Flash (default) → Claude Haiku 4.5 (escalation) |
+| AI (Chatbot) | OpenRouter — Gemini 2.5 Flash (default) → Claude Sonnet 4.6 (escalation) |
 | Fonts | Sarabun (ไทย) + Inter ผ่าน `next/font/google` |
 
 > ⚠️ **ห้าม install npm package ใหม่โดยไม่ได้รับอนุญาต** — `xlsx` เป็น dependency เดียวนอกเหนือ core ที่อนุมัติแล้ว
@@ -137,9 +137,8 @@ AZURE_AD_TENANT_ID=
 # Notion (token + DB IDs ทั้งหมด — ดู VERCEL_ENV_SETUP.md)
 NOTION_TOKEN=                # ntn_... จาก notion.so/my-integrations
 
-# Phase 5 Chatbot
-GOOGLE_AI_API_KEY=           # Gemini 2.5 Flash
-ANTHROPIC_API_KEY=           # Claude Haiku 4.5
+# Phase 5 Chatbot (OpenRouter gateway — gateway เดียวทั้ง Gemini + Claude)
+OPENROUTER_API_KEY=          # sk-or-v1-... จาก openrouter.ai/keys
 NOTION_CHAT_SESSIONS_DB_ID=
 ```
 

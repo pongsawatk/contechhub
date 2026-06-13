@@ -1,7 +1,7 @@
 # Vercel Environment Variables
 # Add all of these in: Vercel Dashboard -> Project -> Settings -> Environment Variables
 # Select: Production + Preview + Development for each
-# Updated: 7 Jun 2026 — added Phase 5 Chatbot + Lead Intake vars
+# Updated: 13 Jun 2026 — Chatbot migrated to OpenRouter (single OPENROUTER_API_KEY)
 
 # --- Auth ---
 AUTH_SECRET=              # generate: openssl rand -base64 32
@@ -24,10 +24,10 @@ NOTION_HOT_QUOTATION_DB_ID=3935d3e1-8444-4b76-9f7b-081bff2b6ccb
 NOTION_SALES_ORDER_DB_ID=6ebe48d3-8670-4204-86d3-f91a5c03d9f8
 NOTION_KNOWLEDGE_DB_ID=40c064b6-6512-4a91-b63e-13b36d55db53   # Phase 5 Chatbot KB source (50 verified entries)
 
-# --- Phase 5 Chatbot ---
-GOOGLE_AI_API_KEY=        # Google AI Studio - Gemini 2.5 Flash (default model)
-ANTHROPIC_API_KEY=        # platform.anthropic.com - Claude Haiku 4.5 (escalation model)
+# --- Phase 5 Chatbot (OpenRouter — single gateway for all models) ---
+OPENROUTER_API_KEY=       # openrouter.ai/keys (sk-or-v1-...) - routes fast=gemini-2.5-flash, escalation=claude-sonnet-4.6
 NOTION_CHAT_SESSIONS_DB_ID=ec0f3a1c-25c4-422f-9e49-d365a664577c
+# GOOGLE_AI_API_KEY / ANTHROPIC_API_KEY — เลิกใช้แล้ว (M2 migrate ไป OpenRouter) ลบออกจาก Vercel ได้
 
 # --- Lead Intake (Phase 7 - n8n automation) ---
 NOTION_LEAD_INTAKE_DB_ID=f42e7db3-d025-4c04-82de-8d4ae790e23d

@@ -16,15 +16,14 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 - Multi-step pricing calculator พร้อม business rules, approval flagging, save, copy summary, PDF export (แนบ package terms จาก Notion)
 - Revenue Tracker + KPI Dashboard ที่ enforce role-level authorization แล้ว
 - Sales Pipeline + Excel import (Hot Quotation / Sales Order / Customer auto-create)
-- Pricing chatbot (Gemini + Claude Haiku) สำหรับ BU roles
+- Pricing chatbot (Gemini Flash → Claude Sonnet via OpenRouter) สำหรับ BU roles
 
 **ช่องว่างหลักที่เหลือ:**
 
-- ยังไม่มี automated tests ใน repo (pricing engine + quote save เป็น candidate แรก)
-- Chatbot มีแผนย้ายไป OpenRouter + multi-model routing
+- E2E smoke test (login → pricing → calculator → save) ยังไม่มี
 - Auth.js Edge runtime warning จาก `jose` (ไม่บล็อก build)
 
-> ✅ G-01 (server-side quote recalculation) และ G-02 (normalized quote fields) ปิดแล้ว 12 Jun 2026
+> ✅ G-01 / G-02 ปิดแล้ว 12 Jun 2026 · M1 (Vitest 55 tests) + M2 (OpenRouter migration) ปิดแล้ว 13 Jun 2026
 
 ---
 
@@ -51,7 +50,7 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 | 4 | Revenue Tracker + KPI Dashboard | ✅ Live | live data, role-gated, KPI Accountable via Relation, MS Graph avatars |
 | 4.5 | Sales Pipeline + Excel Import | ✅ Live | Hot Quotation / Sales Order / Customer auto-create |
 | 4.6 | BU Playbook | ✅ Live | overview/team/workstream/rituals/messages |
-| 5 | Pricing Chatbot | ✅ Live (BU) | Gemini 2.5 Flash → Claude Haiku escalation, Pricing DB + Verified KB |
+| 5 | Pricing Chatbot | ✅ Live (BU) | Gemini 2.5 Flash → Claude Sonnet 4.6 escalation (OpenRouter), Pricing DB + Verified KB |
 | 6 | Staff Chatbot | 🟢 Backlog | role-aware, KB layered |
 | — | Admin/Config, Audit Log | ⏳ Deferred | |
 
@@ -83,7 +82,7 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 - **Auth:** next-auth v5 beta + Microsoft Entra ID
 - **Data:** Notion API (`@notionhq/client` v5) เป็น system of record
 - **Excel:** xlsx (SheetJS)
-- **AI:** Gemini 2.5 Flash + Claude Haiku 4.5
+- **AI:** OpenRouter gateway — Gemini 2.5 Flash + Claude Sonnet 4.6
 
 **Strengths:** iterate เร็ว, infra ต่ำ, pricing/content แก้ที่ Notion ได้, เหมาะกับ early validation + BU rollout
 **Risks:** next-auth v5 beta upgrade risk, Notion ไม่เหมาะเป็น transactional system ระยะยาวสำหรับ audit-heavy flow, ยังไม่มี automated tests

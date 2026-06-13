@@ -23,7 +23,7 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 | 4 | Revenue Tracker + KPI Dashboard | ✅ Live |
 | 4.5 | Sales Pipeline + Excel Import | ✅ Live |
 | 4.6 | BU Playbook | ✅ Live |
-| 5 | Pricing Calculator Chatbot (Gemini + Claude Haiku) | ✅ Live (BU roles) |
+| 5 | Pricing Calculator Chatbot (Gemini Flash → Claude Sonnet via OpenRouter) | ✅ Live (BU roles) |
 | 6 | Staff Chatbot (role-aware) | 🟢 Backlog |
 | — | Admin/Config Page, Audit Log | ⏳ Deferred |
 
@@ -73,8 +73,8 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 
 ### Phase 5 — Pricing Calculator Chatbot (22 Mar 2026)
 - `/dashboard/chatbot` เปิดสำหรับ `admin` / `bu_member`
-- Routing: Gemini 2.5 Flash (default) → escalate Claude Haiku 4.5 เมื่อ intent ต้อง reasoning
-- Source: Pricing DB + Verified Knowledge Base (50 entries) ; `lib/chatbot-*` (router, prompt, parser, notion)
+- Routing: Gemini 2.5 Flash (default) → escalate Claude Sonnet 4.6 เมื่อ intent ต้อง reasoning — ผ่าน OpenRouter (M2, 13 Jun 2026)
+- Source: Pricing DB + Verified Knowledge Base (50 entries) ; `lib/chatbot-*` (router, prompt, parser, notion) + `lib/openrouter.ts`
 
 ### March 22 Hardening Pass (G-01 → G-05)
 - G-01: enforce `hasBuAccess()` บน GET ของ KPI / Revenue / Pipeline
@@ -124,8 +124,8 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 | G-02 | Quote reporting fields | ✅ Resolved (12 Jun 2026) | Base/Add-on split จริง + เพิ่ม `One-time Total (THB)`, `First Year Total (THB)` ใน Quote Sessions DB |
 | G-03 | README onboarding | ✅ Resolved (7 Jun 2026) | README.md ฉบับใหม่ + PROJECT_LOG.md |
 | G-04 | Auth.js Edge warning | 🟢 Low | build ผ่าน แต่ยังมี `jose` warning เรื่อง CompressionStream/DecompressionStream ใน Edge Runtime |
-| — | Automated tests (pricing engine + quote save) | 🟡 Medium | ยังไม่มี test ใน repo — pricing engine + `lib/quote-server.ts` เป็น candidate แรก |
-| — | Chatbot ย้ายไป OpenRouter + multi-model routing | 🟢 Planned | แผนของจ้อ: ใช้ key จาก OpenRouter + route คำถามไปหลาย AI model (แทนการแก้ Gemini key ใน URL) |
+| M1 | Automated tests (pricing engine + quote-server) | ✅ Resolved (13 Jun 2026) | Vitest + 55 tests — `lib/__tests__/` ครอบคลุม pricing-engine, quote-server (G-01), chatbot router/openrouter |
+| M2 | Chatbot ย้ายไป OpenRouter + multi-model routing | ✅ Resolved (13 Jun 2026) | `lib/openrouter.ts` gateway เดียว — key ผ่าน Authorization header (เลิกใส่ใน URL) ; route fast=Gemini Flash → escalation=Claude Sonnet 4.6 |
 | — | Staff Chatbot (Phase 6) | 🟢 Backlog | role-aware AI ; KB source: Verified KB → Product → Pricing → Sales Blueprint |
 | — | Admin/Config Page, Audit Log | ⏳ Deferred | |
 
