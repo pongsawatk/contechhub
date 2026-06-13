@@ -38,7 +38,8 @@ export interface CalculatorPrefill {
 export interface ChatbotResponse {
   message: string
   intent: ChatIntent
-  modelUsed: 'gemini-2.5-flash' | 'claude-haiku-4-5-20251001'
+  /** OpenRouter model slug ที่ใช้สร้างคำตอบนี้ เช่น "google/gemini-2.5-flash" */
+  modelUsed: string
   pricingCards?: PricingCardRef[]
   calculatorPrefill?: CalculatorPrefill | null
 }

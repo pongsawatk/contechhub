@@ -56,7 +56,7 @@ function formatKBContext(entries: KBEntry[]): string {
     .join('\n\n')
 }
 
-export function buildFlashSystemPrompt(
+export function buildFastSystemPrompt(
   pricingItems: PricingItem[],
   kbEntries: KBEntry[],
   userProfile: UserProfile
@@ -104,7 +104,7 @@ ${kbContext || 'ไม่มีข้อมูลเพิ่มเติม'}
 \`\`\``
 }
 
-export function buildHaikuSystemPrompt(
+export function buildEscalationSystemPrompt(
   pricingItems: PricingItem[],
   kbEntries: KBEntry[],
   userProfile: UserProfile

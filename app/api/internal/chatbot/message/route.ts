@@ -1,110 +1,25 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { hasAuthenticatedUser, hasBuAccess } from '@/lib/api-auth'
-import { buildFlashSystemPrompt, buildHaikuSystemPrompt } from '@/lib/chatbot-prompt'
+import { buildFastSystemPrompt, buildEscalationSystemPrompt } from '@/lib/chatbot-prompt'
 import { parseChatbotResponse } from '@/lib/chatbot-parser'
-import { requiresEscalation } from '@/lib/chatbot-router'
+import { CHAT_MODELS, modelForIntent, requiresEscalation } from '@/lib/chatbot-router'
+import { callOpenRouter } from '@/lib/openrouter'
 import { getKBEntries, getPricingPackages } from '@/lib/notion'
 import type { ChatIntent, ChatMessage } from '@/types/chatbot'
-
-const GEMINI_MODEL = 'gemini-2.5-flash'
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001'
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
-
-function normalizeModelText(text: unknown): string {
-  return typeof text === 'string' ? text.trim() : ''
-}
-
-async function readJson(res: Response): Promise<unknown> {
-  try {
-    return await res.json()
-  } catch {
-    return null
-  }
-}
-
-interface GeminiGenerateContentResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string
-      }>
-    }
-  }>
-}
-
-interface AnthropicMessagesResponse {
-  content?: Array<{
-    text?: string
-  }>
-}
-
-async function callGemini(systemPrompt: string, messages: ChatMessage[], maxTokens = 800): Promise<string> {
-  const body = {
-    systemInstruction: { parts: [{ text: systemPrompt }] },
-    contents: messages.map((message) => ({
-      role: message.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: message.content }],
-    })),
-    generationConfig: { maxOutputTokens: maxTokens },
-  }
-
-  const res = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-
-  const data = (await readJson(res)) as GeminiGenerateContentResponse | null
-  if (!res.ok) {
-    console.error('[Chatbot] Gemini error:', data)
-    throw new Error('Gemini request failed')
-  }
-
-  return normalizeModelText(data?.candidates?.[0]?.content?.parts?.[0]?.text)
-}
-
-async function callHaiku(systemPrompt: string, messages: ChatMessage[]): Promise<string> {
-  const body = {
-    model: HAIKU_MODEL,
-    max_tokens: 1000,
-    system: systemPrompt,
-    messages,
-  }
-
-  const res = await fetch(ANTHROPIC_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify(body),
-  })
-
-  const data = (await readJson(res)) as AnthropicMessagesResponse | null
-  if (!res.ok) {
-    console.error('[Chatbot] Haiku error:', data)
-    throw new Error('Haiku request failed')
-  }
-
-  const text = Array.isArray(data?.content)
-    ? data.content
-        .map((part: { text?: string }) => part?.text ?? '')
-        .join('\n')
-        .trim()
-    : ''
-
-  return normalizeModelText(text)
-}
 
 async function classifyIntent(lastUserMessage: string): Promise<ChatIntent> {
   const classifyPrompt = `Classify this sales chat message into exactly one intent.
 Valid intents: collect_requirement, extract_fields, summarize, explain_package, compare_packages, objection_handling, closing_script
-Return JSON only, no other text: {"intent": "..."}` 
+Return JSON only, no other text: {"intent": "..."}`
 
   try {
-    const text = await callGemini(classifyPrompt, [{ role: 'user', content: lastUserMessage }], 50)
+    const text = await callOpenRouter({
+      model: CHAT_MODELS.fast,
+      system: classifyPrompt,
+      messages: [{ role: 'user', content: lastUserMessage }],
+      maxTokens: 50,
+    })
     const clean = text.replace(/```json\n?|```/g, '').trim()
     const parsed = JSON.parse(clean)
     return parsed.intent as ChatIntent
@@ -132,8 +47,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'No messages' }, { status: 400 })
   }
 
-  if (!process.env.GOOGLE_AI_API_KEY) {
-    return NextResponse.json({ error: 'GOOGLE_AI_API_KEY is not configured' }, { status: 500 })
+  if (!process.env.OPENROUTER_API_KEY) {
+    return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured' }, { status: 500 })
   }
 
   const lastUserMessage = [...messages].reverse().find((message) => message.role === 'user')?.content ?? ''
@@ -150,18 +65,20 @@ export async function POST(req: Request) {
       classifyIntent(lastUserMessage),
     ])
 
-    let rawText = ''
-    let modelUsed: 'gemini-2.5-flash' | 'claude-haiku-4-5-20251001' = GEMINI_MODEL
+    const escalate = requiresEscalation(intent)
+    const model = modelForIntent(intent)
+    const system = escalate
+      ? buildEscalationSystemPrompt(pricingItems, kbEntries, userProfile)
+      : buildFastSystemPrompt(pricingItems, kbEntries, userProfile)
 
-    if (requiresEscalation(intent)) {
-      rawText = await callHaiku(buildHaikuSystemPrompt(pricingItems, kbEntries, userProfile), messages)
-      modelUsed = HAIKU_MODEL
-    } else {
-      rawText = await callGemini(buildFlashSystemPrompt(pricingItems, kbEntries, userProfile), messages)
-      modelUsed = GEMINI_MODEL
-    }
+    const rawText = await callOpenRouter({
+      model,
+      system,
+      messages,
+      maxTokens: escalate ? 1000 : 800,
+    })
 
-    const result = parseChatbotResponse(rawText, intent, modelUsed)
+    const result = parseChatbotResponse(rawText, intent, model)
     return NextResponse.json({ ...result, sessionId })
   } catch (error) {
     console.error('[Chatbot] message route error:', error)

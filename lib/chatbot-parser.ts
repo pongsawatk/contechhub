@@ -4,7 +4,7 @@ import { productToTab } from './chatbot-router'
 export function parseChatbotResponse(
   rawText: string,
   intent: ChatIntent,
-  modelUsed: 'gemini-2.5-flash' | 'claude-haiku-4-5-20251001'
+  modelUsed: string
 ): ChatbotResponse {
   const jsonMatches = rawText.match(/```json\n([\s\S]*?)\n```/g) ?? []
 

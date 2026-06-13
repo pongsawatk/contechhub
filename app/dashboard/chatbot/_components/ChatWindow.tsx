@@ -182,15 +182,20 @@ export default function ChatWindow({ userProfile }: Props) {
 
               {message.role === 'assistant' && index === messages.length - 1 && lastModel && (
                 <div className="mt-2 border-t border-white/8 pt-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      lastModel.includes('haiku')
-                        ? 'bg-orange-400/15 text-orange-300'
-                        : 'bg-green-400/15 text-green-300'
-                    }`}
-                  >
-                    {lastModel.includes('haiku') ? 'Haiku' : 'Flash'}
-                  </span>
+                  {(() => {
+                    const isFast = lastModel.includes('gemini')
+                    return (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          isFast
+                            ? 'bg-green-400/15 text-green-300'
+                            : 'bg-orange-400/15 text-orange-300'
+                        }`}
+                      >
+                        {isFast ? 'Flash' : 'Consultative'}
+                      </span>
+                    )
+                  })()}
                 </div>
               )}
             </div>
