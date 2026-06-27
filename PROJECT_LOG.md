@@ -113,6 +113,8 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 | 2026-05-04 | Package terms ในใบเสนอราคา + sync blueprint ; access permissions modal (3 commits) |
 | 2026-06-11 | docs: README ใหม่ + PROJECT_LOG + refresh product docs |
 | 2026-06-12 | Hardening + Refactor pass: G-01 server-side quote recalculation ; G-02 normalized fields ; auth/middleware hygiene ; xlsx lazy-load ; แยก lib/notion/ ; lib/format.ts ; feature flags ที่ page level |
+| 2026-06-27 | Docs/status sync: อ่าน `.md` ทั้งหมดแบบ forced recursive scan รวม hidden folders, ยืนยัน `.claude/` ไม่มี `.md`, sync README / PRODUCT_SUMMARY / PROJECT_LOG กับ M1/M2 + Lead-to-Cash SOP ล่าสุด |
+| 2026-06-27 | Security hygiene: redact plaintext credentials จาก Notion page เก่า `🏠 Contech Hub`; ยังต้อง rotate credential ที่เคยถูกเผยแพร่จาก provider ต้นทางก่อน deploy/ops ต่อ |
 
 ---
 
@@ -129,7 +131,7 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 | — | Staff Chatbot (Phase 6) | 🟢 Backlog | role-aware AI ; KB source: Verified KB → Product → Pricing → Sales Blueprint |
 | — | Admin/Config Page, Audit Log | ⏳ Deferred | |
 
-**Next priority:** Automated tests รอบ pricing engine + quote save flow และเตรียม OpenRouter migration สำหรับ chatbot
+**Next priority:** E2E smoke test รอบ login → pricing → calculator → save และ Lead-to-Cash foundation จาก Notion SOP ล่าสุด: Onboarding Tracker, Invoice & Collection Schedule, Recurring/Customer Health, Red Flag dashboard
 
 ---
 

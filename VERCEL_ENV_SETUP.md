@@ -2,6 +2,8 @@
 # Add all of these in: Vercel Dashboard -> Project -> Settings -> Environment Variables
 # Select: Production + Preview + Development for each
 # Updated: 13 Jun 2026 — Chatbot migrated to OpenRouter (single OPENROUTER_API_KEY)
+# Security note 27 Jun 2026: plaintext credentials were removed from an old Notion page.
+# Treat any credential that was ever stored there as exposed and rotate it at the provider.
 
 # --- Auth ---
 AUTH_SECRET=              # generate: openssl rand -base64 32

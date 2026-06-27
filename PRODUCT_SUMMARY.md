@@ -1,7 +1,7 @@
 # Contech Hub — Product Summary
 
-> อัปเดต: **12 June 2026** (ฉบับก่อนหน้า 15 Mar 2026 ล้าสมัยแล้ว — ตอนนั้น KPI/Revenue/Chatbot ยังไม่เสร็จ ปัจจุบัน Live ครบ)
-> อ้างอิงสถานะจาก git history (ถึง 12 Jun 2026) + [Notion Blueprint](https://app.notion.com/p/32b46733f68081beab2acc87dcb3e088) (12 Jun 2026)
+> อัปเดต: **27 June 2026** (ฉบับก่อนหน้า 12 Jun 2026 ยังไม่รวม M1/M2 และ Lead-to-Cash SOP ล่าสุด)
+> อ้างอิงสถานะจาก git history (ถึง 13 Jun 2026), [Notion Blueprint](https://app.notion.com/p/32b46733f68081beab2acc87dcb3e088) (12 Jun 2026), และ [Lead-to-Cash SOP](https://app.notion.com/p/031e6432a911431db8ba5830995dbec6)
 
 ---
 
@@ -21,6 +21,7 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 **ช่องว่างหลักที่เหลือ:**
 
 - E2E smoke test (login → pricing → calculator → save) ยังไม่มี
+- Lead-to-Cash monitor layer จาก SOP ล่าสุดยังไม่ถูก implement ครบ: Onboarding, Invoice/Collection, Recurring Health, Red Flag dashboard
 - Auth.js Edge runtime warning จาก `jose` (ไม่บล็อก build)
 
 > ✅ G-01 / G-02 ปิดแล้ว 12 Jun 2026 · M1 (Vitest 55 tests) + M2 (OpenRouter migration) ปิดแล้ว 13 Jun 2026
@@ -72,7 +73,7 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 8. Import sales pipeline จาก Excel + auto-create customer
 9. ตอบคำถาม pricing ผ่าน chatbot สำหรับ BU roles
 
-ยังไม่สมบูรณ์: automated tests, OpenRouter migration สำหรับ chatbot, Staff Chatbot (Phase 6)
+ยังไม่สมบูรณ์: E2E smoke test, Staff Chatbot (Phase 6), และ Lead-to-Cash monitor layer ตาม SOP ล่าสุด
 
 ---
 
@@ -85,16 +86,16 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 - **AI:** OpenRouter gateway — Gemini 2.5 Flash + Claude Sonnet 4.6
 
 **Strengths:** iterate เร็ว, infra ต่ำ, pricing/content แก้ที่ Notion ได้, เหมาะกับ early validation + BU rollout
-**Risks:** next-auth v5 beta upgrade risk, Notion ไม่เหมาะเป็น transactional system ระยะยาวสำหรับ audit-heavy flow, ยังไม่มี automated tests
+**Risks:** next-auth v5 beta upgrade risk, Notion ไม่เหมาะเป็น transactional system ระยะยาวสำหรับ audit-heavy flow, ยังไม่มี E2E smoke test และยังไม่มี monitor layer หลังปิดการขายครบทั้งเส้น
 
 ---
 
 ## 6. Senior Developer Assessment
 
-โปรเจกต์ผ่านจุด "prototype" มาเป็น internal product จริงที่มี business value ชัดเจน (pricing + quote + revenue + KPI + pipeline ใช้งานได้) — Hardening pass 12 Jun 2026 ปิด server-side quote recalculation + normalized fields แล้ว งานช่วงต่อไป:
+โปรเจกต์ผ่านจุด "prototype" มาเป็น internal product จริงที่มี business value ชัดเจน (pricing + quote + revenue + KPI + pipeline ใช้งานได้) — Hardening pass 12 Jun 2026 ปิด server-side quote recalculation + normalized fields แล้ว และ 13 Jun 2026 ปิด M1/M2 ด้วย Vitest + OpenRouter migration แล้ว งานช่วงต่อไป:
 
-- เริ่ม automated tests รอบ pricing engine + `lib/quote-server.ts`
-- OpenRouter migration + multi-model routing สำหรับ chatbot
+- เพิ่ม E2E smoke test รอบ login → pricing → calculator → save
+- วาง Lead-to-Cash foundation ตาม Notion SOP: Onboarding Tracker, Invoice & Collection Schedule, Recurring/Customer Health, Red Flag dashboard
 - Data governance สำหรับ revenue/KPI ที่ sensitive
 
 ---
@@ -107,17 +108,23 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 | H1 ✅ | Recalculate quote totals ฝั่ง server ก่อน save (G-01) | `lib/quote-server.ts` — ไม่ trust client payload แล้ว |
 | H2 ✅ | Normalize quote breakdown fields ใน Quote Sessions (G-02) | Base/Add-on split จริง + One-time/First-Year fields |
 
+### Done (13 Jun 2026)
+| ID | Action | ผลลัพธ์ |
+| --- | --- | --- |
+| M1 ✅ | เพิ่ม unit tests ให้ pricing engine + quote-server | Vitest 55 tests ครอบคลุม pricing-engine, quote-server, chatbot router, OpenRouter client |
+| M2 ✅ | OpenRouter migration + multi-model routing สำหรับ chatbot | `lib/openrouter.ts` gateway เดียว ส่ง key ผ่าน Authorization header |
+
 ### High Impact
 | ID | Action | Why |
 | --- | --- | --- |
-| M1 | เพิ่ม unit tests ให้ pricing engine + quote-server | กัน regression ของ business rule |
-| M2 | OpenRouter migration + multi-model routing สำหรับ chatbot | ตามแผน — แก้เรื่อง key ใน URL ไปพร้อมกัน |
+| M3 | E2E smoke test: login → pricing → calculator → save | release confidence |
+| M5 | Lead-to-Cash foundation phase | เติม monitor หลังปิดการขาย: Onboarding / Invoice & Collection / Recurring Health |
 
 ### Medium Impact
 | ID | Action | Why |
 | --- | --- | --- |
-| M3 | E2E smoke test: login → pricing → calculator → save | release confidence |
 | M4 | Backfill legacy quotes ให้ hydrate `?quote=` ได้ครบ | optional, ไม่บล็อก |
+| M6 | Red Flag dashboard | ให้จ้อ/เอกเห็น Lead SLA, Go-live risk, overdue, renewal risk ในที่เดียว |
 
 ### Low Impact
 | ID | Action | Why |
@@ -129,4 +136,4 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 
 ## 8. Conclusion
 
-Contech Hub เป็น internal product ที่มี value จริง ไม่ใช่แค่ prototype อีกต่อไป Phase 1–5 + 4.5/4.6 ส่งมอบ operational value ครบสำหรับ pricing, quote, revenue, KPI และ pipeline และ trust boundary ฝั่ง server ของ quote ปิดแล้ว (12 Jun 2026) ขั้นต่อไปที่ให้ผลตอบแทนสูงสุดคือ **automated tests รอบ pricing engine/quote save** และ **OpenRouter migration ของ chatbot** มากกว่าการเพิ่ม UI surface ใหม่
+Contech Hub เป็น internal product ที่มี value จริง ไม่ใช่แค่ prototype อีกต่อไป Phase 1–5 + 4.5/4.6 ส่งมอบ operational value ครบสำหรับ pricing, quote, revenue, KPI และ pipeline และ trust boundary ฝั่ง server ของ quote ปิดแล้ว (12 Jun 2026) พร้อม automated tests + OpenRouter migration แล้ว (13 Jun 2026). ขั้นต่อไปที่ให้ผลตอบแทนสูงสุดคือ **E2E smoke test** และ **Lead-to-Cash monitor layer** ตาม Notion SOP ล่าสุด มากกว่าการเพิ่ม UI surface ที่ไม่ผูกกับ operating process.

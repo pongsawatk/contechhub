@@ -3,7 +3,10 @@
 Internal Web Application สำหรับทีม **Contech BU (Builk One Group)** — Command Center กลางสำหรับงานขาย, pricing, quote, revenue, KPI และ sales pipeline ปี 2026 (เป้ารายได้ **20M THB**)
 
 > 📘 **Single Source of Truth:** [Notion — Contech Hub Application Blueprint](https://app.notion.com/p/32b46733f68081beab2acc87dcb3e088) (อ่านก่อนเขียนโค้ดทุกครั้ง)
+> 🧭 **Latest operating direction:** [Notion — ContechHub Lead-to-Cash SOP & Improvement Blueprint](https://app.notion.com/p/031e6432a911431db8ba5830995dbec6)
 > 📝 **Work log / changelog:** [`PROJECT_LOG.md`](./PROJECT_LOG.md)
+
+> 🔎 **Docs scan note (27 Jun 2026):** forced recursive scan รวม hidden folders แล้วพบ `.md` ใน repo 6 ไฟล์เท่านั้น: `README.md`, `PRODUCT_SUMMARY.md`, `PROJECT_LOG.md`, `POST_DEPLOY_CHECKLIST.md`, `VERCEL_ENV_SETUP.md`, `BLUEPRINT_SYNC_CHANGELOG_2026-03-22.md`. โฟลเดอร์ `.claude/` มีเฉพาะ local config (`launch.json`, `settings.local.json`) ไม่มี `.md` เพิ่ม
 
 ---
 
@@ -38,6 +41,11 @@ npm run dev          # http://localhost:3000
 npm run lint         # ต้อง 0 warnings/errors
 npm run build        # ต้อง 0 errors
 ```
+
+Claude local config ที่พบ:
+
+- `.claude/launch.json` มี launch target สำหรับ Next.js dev server และ production preview ที่ port `3000`
+- `.claude/settings.local.json` เป็น local permission allowlist สำหรับ Claude tooling เช่น `npm run build`, `npx tsc --noEmit`, Notion fetch/search และ preview tooling ไม่ใช่ source of truth ของ product status
 
 ---
 
@@ -118,6 +126,8 @@ middleware.ts   auth.ts            route protection + Auth.js config
 | Chat Sessions | `NOTION_CHAT_SESSIONS_DB_ID` |
 | Lead Intake (n8n + AI qualification) | `NOTION_LEAD_INTAKE_DB_ID` |
 
+Notion page ล่าสุดที่เกี่ยวข้องกับ product direction คือ **ContechHub Lead-to-Cash SOP & Improvement Blueprint** ซึ่งขยาย Contech Hub จาก pricing/quote/pipeline console ไปเป็น Lead-to-Cash monitor layer: Lead → Sales → Onboarding → Invoice/Collection → Revenue Recognition → Recurring Health.
+
 ---
 
 ## Environment Variables
@@ -159,4 +169,4 @@ NOTION_CHAT_SESSIONS_DB_ID=
 
 ## Known Gaps
 
-ดู [`PROJECT_LOG.md` §4](./PROJECT_LOG.md) — G-01 (server-side quote recalculation) และ G-02 (normalized quote fields) ปิดแล้ว 12 Jun 2026 ; ที่เหลือคือ automated tests, OpenRouter migration สำหรับ chatbot และ `jose` Edge warning (G-04)
+ดู [`PROJECT_LOG.md` §4](./PROJECT_LOG.md) — G-01/G-02 ปิดแล้ว 12 Jun 2026 และ M1/M2 ปิดแล้ว 13 Jun 2026 (`npm test` = 55 tests). ที่เหลือหลักคือ E2E smoke test, `jose` Edge warning (G-04), และงาน Lead-to-Cash monitor layer จาก SOP ล่าสุด: Onboarding, Invoice/Collection, Recurring Health, Red Flag dashboard.
