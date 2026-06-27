@@ -60,6 +60,20 @@ export interface SalesOrder {
   notes: string
 }
 
+export type PipelineRedFlagSeverity = "critical" | "warning" | "info"
+export type PipelineRedFlagSource = "Hot Quotation" | "Sales Order"
+
+export interface PipelineRedFlag {
+  id: string
+  source: PipelineRedFlagSource
+  severity: PipelineRedFlagSeverity
+  title: string
+  detail: string
+  ownerName: string
+  amount: number
+  dueDate: string | null
+}
+
 export interface ParsedHotQuotation {
   quotationNo: string
   product: string

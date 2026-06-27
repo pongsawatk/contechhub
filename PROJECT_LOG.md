@@ -115,6 +115,7 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 | 2026-06-12 | Hardening + Refactor pass: G-01 server-side quote recalculation ; G-02 normalized fields ; auth/middleware hygiene ; xlsx lazy-load ; แยก lib/notion/ ; lib/format.ts ; feature flags ที่ page level |
 | 2026-06-27 | Docs/status sync: อ่าน `.md` ทั้งหมดแบบ forced recursive scan รวม hidden folders, ยืนยัน `.claude/` ไม่มี `.md`, sync README / PRODUCT_SUMMARY / PROJECT_LOG กับ M1/M2 + Lead-to-Cash SOP ล่าสุด |
 | 2026-06-27 | Security hygiene: redact plaintext credentials จาก Notion page เก่า `🏠 Contech Hub`; ยังต้อง rotate credential ที่เคยถูกเผยแพร่จาก provider ต้นทางก่อน deploy/ops ต่อ |
+| 2026-06-27 | Lead-to-Cash slice 1: เพิ่ม Red Flag panel ใน Pipeline overview โดยใช้ field ที่มีอยู่แล้ว (Hot Quotation + Sales Order) พร้อม unit tests; ยังไม่แตะ schema Notion live |
 
 ---
 
@@ -128,6 +129,7 @@ Contech Hub คือ Internal Web App สำหรับทีม Contech BU (B
 | G-04 | Auth.js Edge warning | 🟢 Low | build ผ่าน แต่ยังมี `jose` warning เรื่อง CompressionStream/DecompressionStream ใน Edge Runtime |
 | M1 | Automated tests (pricing engine + quote-server) | ✅ Resolved (13 Jun 2026) | Vitest + 55 tests — `lib/__tests__/` ครอบคลุม pricing-engine, quote-server (G-01), chatbot router/openrouter |
 | M2 | Chatbot ย้ายไป OpenRouter + multi-model routing | ✅ Resolved (13 Jun 2026) | `lib/openrouter.ts` gateway เดียว — key ผ่าน Authorization header (เลิกใส่ใน URL) ; route fast=Gemini Flash → escalation=Claude Sonnet 4.6 |
+| M6 | Red Flag panel slice 1 | ✅ Resolved (27 Jun 2026) | Pipeline overview แสดง red flags จากข้อมูลเดิม: missing owner/expected close, stale follow-up, verbal yes overdue, go-live/revenue risk |
 | — | Staff Chatbot (Phase 6) | 🟢 Backlog | role-aware AI ; KB source: Verified KB → Product → Pricing → Sales Blueprint |
 | — | Admin/Config Page, Audit Log | ⏳ Deferred | |
 

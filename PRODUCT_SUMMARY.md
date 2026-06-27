@@ -21,7 +21,7 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 **ช่องว่างหลักที่เหลือ:**
 
 - E2E smoke test (login → pricing → calculator → save) ยังไม่มี
-- Lead-to-Cash monitor layer จาก SOP ล่าสุดยังไม่ถูก implement ครบ: Onboarding, Invoice/Collection, Recurring Health, Red Flag dashboard
+- Lead-to-Cash monitor layer จาก SOP ล่าสุดยังไม่ถูก implement ครบ: Red Flag panel slice แรกมีแล้วใน Pipeline overview แต่ Onboarding, Invoice/Collection, Recurring Health ยังไม่มี
 - Auth.js Edge runtime warning จาก `jose` (ไม่บล็อก build)
 
 > ✅ G-01 / G-02 ปิดแล้ว 12 Jun 2026 · M1 (Vitest 55 tests) + M2 (OpenRouter migration) ปิดแล้ว 13 Jun 2026
@@ -73,7 +73,7 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 8. Import sales pipeline จาก Excel + auto-create customer
 9. ตอบคำถาม pricing ผ่าน chatbot สำหรับ BU roles
 
-ยังไม่สมบูรณ์: E2E smoke test, Staff Chatbot (Phase 6), และ Lead-to-Cash monitor layer ตาม SOP ล่าสุด
+ยังไม่สมบูรณ์: E2E smoke test, Staff Chatbot (Phase 6), และ Lead-to-Cash monitor layer ส่วน Onboarding / Invoice & Collection / Recurring Health
 
 ---
 
@@ -124,7 +124,7 @@ Contech Hub คือ internal web platform ของ Contech BU ที่รว
 | ID | Action | Why |
 | --- | --- | --- |
 | M4 | Backfill legacy quotes ให้ hydrate `?quote=` ได้ครบ | optional, ไม่บล็อก |
-| M6 | Red Flag dashboard | ให้จ้อ/เอกเห็น Lead SLA, Go-live risk, overdue, renewal risk ในที่เดียว |
+| M6 ✅ | Red Flag panel slice 1 | เพิ่ม Pipeline overview panel จากข้อมูลเดิม: owner missing, expected close missing, stale follow-up, verbal yes overdue, go-live/revenue risk |
 
 ### Low Impact
 | ID | Action | Why |

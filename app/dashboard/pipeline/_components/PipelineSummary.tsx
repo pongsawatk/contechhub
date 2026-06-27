@@ -1,6 +1,8 @@
-﻿import type { HotQuotation, SalesOrder } from "@/types/pipeline"
+import type { HotQuotation, SalesOrder } from "@/types/pipeline"
 import { formatTHB, stageColor } from "@/lib/pipeline-helpers"
+import { getPipelineRedFlags } from "@/lib/pipeline-red-flags"
 import Link from "next/link"
+import RedFlagPanel from "./RedFlagPanel"
 
 interface Props {
   quotations: HotQuotation[]
@@ -31,86 +33,94 @@ export default function PipelineSummary({ quotations, orders }: Props) {
   const totalRecognized = orders.reduce((s, o) => s + o.revenueAmount, 0)
   const mtdBooking = mtdOrders.reduce((s, o) => s + o.orderAmount, 0)
   const recPct = totalBooking > 0 ? Math.round((totalRecognized / totalBooking) * 100) : 0
+  const redFlags = getPipelineRedFlags(quotations, orders)
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Card 1: Hot Quotation */}
-      <div className="glass-card p-5 space-y-4 relative">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🔥</span>
-          <h3 className="text-white font-semibold">Hot Quotation</h3>
-        </div>
-        <div>
-          <div className="text-3xl font-bold text-white">{activeQuotes.length}</div>
-          <div className="text-accent-cyan text-lg font-semibold">{formatTHB(totalQuoteAmount)} THB</div>
-        </div>
-        <div className="space-y-1">
-          {stages.map((s) => (
-            <div key={s} className="flex items-center gap-2 text-xs">
-              <span className={"w-24 " + stageColor(s)}>{s}</span>
-              <div className="flex-1 bg-white/10 rounded-full h-1.5">
-                <div className="h-1.5 rounded-full bg-blue-500"
-                  style={{ width: activeQuotes.length > 0 ? (stageCount[s] / activeQuotes.length * 100) + "%" : "0%" }} />
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="glass-card p-5 space-y-4 relative">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🔥</span>
+            <h3 className="text-white font-semibold">Hot Quotation</h3>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-white">{activeQuotes.length}</div>
+            <div className="text-accent-cyan text-lg font-semibold">{formatTHB(totalQuoteAmount)} THB</div>
+          </div>
+          <div className="space-y-1">
+            {stages.map((s) => (
+              <div key={s} className="flex items-center gap-2 text-xs">
+                <span className={"w-24 " + stageColor(s)}>{s}</span>
+                <div className="flex-1 bg-white/10 rounded-full h-1.5">
+                  <div
+                    className="h-1.5 rounded-full bg-blue-500"
+                    style={{ width: activeQuotes.length > 0 ? (stageCount[s] / activeQuotes.length * 100) + "%" : "0%" }}
+                  />
+                </div>
+                <span className="text-white/50 w-4 text-right">{stageCount[s]}</span>
               </div>
-              <span className="text-white/50 w-4 text-right">{stageCount[s]}</span>
+            ))}
+          </div>
+          <div className="text-xs text-white/40">
+            Hotness 5: {activeQuotes.filter((q) => q.hotness === "5").length} ·
+            Hotness 4: {activeQuotes.filter((q) => q.hotness === "4").length}
+          </div>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 text-3xl hidden md:block">→</div>
+        </div>
+
+        <div className="glass-card p-5 space-y-4 relative">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">💼</span>
+            <h3 className="text-white font-semibold">Sales Order (MTD)</h3>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-white">{wonOrders.length}</div>
+            <div className="text-accent-cyan text-lg font-semibold">{formatTHB(totalOrderAmount)} THB</div>
+          </div>
+          <div className="space-y-1">
+            {revenueTypes.filter((rt) => rtCount[rt] > 0).map((rt) => (
+              <div key={rt} className="flex items-center gap-2 text-xs">
+                <span className="text-white/60 w-28 truncate">{rt}</span>
+                <span className="text-accent-cyan">{rtCount[rt]}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-xs text-white/40">Avg deal: {formatTHB(avgDeal)} THB</div>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 text-3xl hidden md:block">→</div>
+        </div>
+
+        <div className="glass-card p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">💹</span>
+            <h3 className="text-white font-semibold">Revenue</h3>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-white">{formatTHB(mtdBooking)} THB</div>
+            <div className="text-white/50 text-sm">MTD Booking</div>
+            <div className="text-white/30 text-xs mt-0.5">รวมทั้งหมด: {formatTHB(totalBooking)}</div>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-white/60">Recognized</span>
+              <span className="text-accent-cyan">{recPct}%</span>
             </div>
-          ))}
+            <div className="w-full bg-white/10 rounded-full h-2">
+              <div
+                className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                style={{ width: recPct + "%" }}
+              />
+            </div>
+          </div>
+          <Link
+            href="/dashboard/revenue"
+            className="block text-center text-xs text-accent-cyan hover:text-white transition-colors py-2 glass-ghost rounded-lg"
+          >
+            ดู Revenue Tracker →
+          </Link>
         </div>
-        <div className="text-xs text-white/40">
-          Hotness 5: {activeQuotes.filter((q) => q.hotness === "5").length} ·
-          Hotness 4: {activeQuotes.filter((q) => q.hotness === "4").length}
-        </div>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 text-3xl hidden md:block">→</div>
       </div>
 
-      {/* Card 2: Sales Order */}
-      <div className="glass-card p-5 space-y-4 relative">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">💼</span>
-          <h3 className="text-white font-semibold">Sales Order (MTD)</h3>
-        </div>
-        <div>
-          <div className="text-3xl font-bold text-white">{wonOrders.length}</div>
-          <div className="text-accent-cyan text-lg font-semibold">{formatTHB(totalOrderAmount)} THB</div>
-        </div>
-        <div className="space-y-1">
-          {revenueTypes.filter((rt) => rtCount[rt] > 0).map((rt) => (
-            <div key={rt} className="flex items-center gap-2 text-xs">
-              <span className="text-white/60 w-28 truncate">{rt}</span>
-              <span className="text-accent-cyan">{rtCount[rt]}</span>
-            </div>
-          ))}
-        </div>
-        <div className="text-xs text-white/40">Avg deal: {formatTHB(avgDeal)} THB</div>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 text-3xl hidden md:block">→</div>
-      </div>
-
-      {/* Card 3: Revenue */}
-      <div className="glass-card p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">💹</span>
-          <h3 className="text-white font-semibold">Revenue</h3>
-        </div>
-        <div>
-          <div className="text-3xl font-bold text-white">{formatTHB(mtdBooking)} THB</div>
-          <div className="text-white/50 text-sm">MTD Booking</div>
-          <div className="text-white/30 text-xs mt-0.5">รวมทั้งหมด: {formatTHB(totalBooking)}</div>
-        </div>
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-white/60">Recognized</span>
-            <span className="text-accent-cyan">{recPct}%</span>
-          </div>
-          <div className="w-full bg-white/10 rounded-full h-2">
-            <div className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
-              style={{ width: recPct + "%" }} />
-          </div>
-        </div>
-        <Link href="/dashboard/revenue"
-          className="block text-center text-xs text-accent-cyan hover:text-white transition-colors py-2 glass-ghost rounded-lg">
-          ดู Revenue Tracker →
-        </Link>
-      </div>
+      <RedFlagPanel flags={redFlags} />
     </div>
   )
 }

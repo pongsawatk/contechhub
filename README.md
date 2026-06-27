@@ -169,4 +169,4 @@ NOTION_CHAT_SESSIONS_DB_ID=
 
 ## Known Gaps
 
-ดู [`PROJECT_LOG.md` §4](./PROJECT_LOG.md) — G-01/G-02 ปิดแล้ว 12 Jun 2026 และ M1/M2 ปิดแล้ว 13 Jun 2026 (`npm test` = 55 tests). ที่เหลือหลักคือ E2E smoke test, `jose` Edge warning (G-04), และงาน Lead-to-Cash monitor layer จาก SOP ล่าสุด: Onboarding, Invoice/Collection, Recurring Health, Red Flag dashboard.
+ดู [`PROJECT_LOG.md` §4](./PROJECT_LOG.md) — G-01/G-02 ปิดแล้ว 12 Jun 2026, M1/M2 ปิดแล้ว 13 Jun 2026, และ Red Flag panel slice แรกบน Pipeline overview ปิดแล้ว 27 Jun 2026 (`npm test` = 60 tests). ที่เหลือหลักคือ E2E smoke test, `jose` Edge warning (G-04), และ Lead-to-Cash monitor layer ส่วนที่ยังต้องมี schema/data เพิ่ม: Onboarding, Invoice/Collection, Recurring Health.
